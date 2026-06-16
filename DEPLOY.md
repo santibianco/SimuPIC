@@ -5,20 +5,37 @@ plus the embedded WASM core, ~100 KB total). Hosting it is free and gives every
 student a URL that works on any laptop or phone, installs as an app, and runs
 offline after the first visit.
 
+## Renaming the repo (picsim → SimuPIC)
+
+The project was first pushed as **picsim**; it's now **SimuPIC**. If your repo
+still lives under the old name, rename it once — GitHub auto-redirects the old
+URLs, so existing links and the Moodle iframe keep working until you update them.
+
+1. On GitHub: **repo → Settings → General**, then rename **picsim → SimuPIC**.
+2. Point your local clone at the new URL:
+
+   ```sh
+   git remote set-url origin https://github.com/santibianco/SimuPIC.git
+   git remote -v   # confirm it now shows SimuPIC
+   ```
+
+3. Push as usual. Your live URL becomes
+   <https://santibianco.github.io/SimuPIC/> (Settings → Pages shows the exact link).
+
 ## One-time setup (GitHub Pages)
 
 You're comfortable with git, so this is the lightest path: push the repo once,
 and a GitHub Action republishes the app automatically on every later push.
 
-1. **Initialize git and push** from the project root (your `picsim` repo already
+1. **Initialize git and push** from the project root (your `SimuPIC` repo already
    exists on GitHub):
 
    ```sh
    git init
    git add -A
-   git commit -m "picsim: cycle-accurate PIC16F628A simulator"
+   git commit -m "SimuPIC: cycle-accurate PIC16F628A simulator"
    git branch -M main
-   git remote add origin https://github.com/santibianco/picsim.git
+   git remote add origin https://github.com/santibianco/SimuPIC.git
    git push -u origin main
    ```
 
@@ -31,7 +48,7 @@ and a GitHub Action republishes the app automatically on every later push.
    `main`. Watch it under the **Actions** tab; when it goes green your URL is:
 
    ```
-   https://santibianco.github.io/picsim/
+   https://santibianco.github.io/SimuPIC/
    ```
 
    (Settings → Pages shows the exact link.)
@@ -64,7 +81,7 @@ Because it's a normal HTTPS URL, the simulator drops straight into a course:
 2. In the editor click the **`< >`** (HTML) button and paste:
 
    ```html
-   <iframe src="https://santibianco.github.io/picsim/"
+   <iframe src="https://santibianco.github.io/SimuPIC/"
            width="960" height="700" style="max-width:100%;border:0"
            allow="fullscreen"></iframe>
    ```

@@ -1,4 +1,4 @@
-// picsim — placas de los trabajos prácticos (las define el/la docente).
+// SimuPIC — placas de los trabajos prácticos (las define el/la docente).
 //
 // Armá una placa en la herramienta de autoría (authoring.html), tocá "Export JSON",
 // y pegá el JSON exportado en el arreglo de abajo. Cada entrada aparece en el

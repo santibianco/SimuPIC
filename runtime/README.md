@@ -1,4 +1,4 @@
-# picsim — browser runtime
+# SimuPIC — browser runtime
 
 A single self-contained page that runs the WASM core and renders a board: the
 PIC16F628A drawn as a DIP-18 chip with labeled pins, and components (LEDs, 7-segment

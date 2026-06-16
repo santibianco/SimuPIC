@@ -1,6 +1,6 @@
-# picsim — Browser-Based PIC16F628A Simulator
+# SimuPIC — Browser-Based PIC16F628A Simulator
 
-**Live:** <https://santibianco.github.io/picsim/>
+**Live:** <https://santibianco.github.io/SimuPIC/>
 
 A web-based, OS-agnostic, **cycle-accurate** simulator for running and visually testing
 PIC16F628A firmware against simple digital components (LEDs, 7-segment displays, buttons).
@@ -47,7 +47,7 @@ The two existing options both fail for teaching digital PIC work:
   jewel is SPICE-level analog co-simulation, which is overkill for a classroom that only
   needs digital LEDs / displays / buttons. On Apple Silicon it also requires a Windows VM.
 
-picsim deliberately builds the *small, correct* tool that's missing: an accurate
+SimuPIC deliberately builds the *small, correct* tool that's missing: an accurate
 single-chip digital simulator that runs in any browser on any OS.
 
 ---
@@ -72,10 +72,10 @@ No pipeline, no cache, no variable latency — cycles are counted exactly by con
 
 ---
 
-## Using picsim
+## Using SimuPIC
 
 ### Students
-1. Open <https://santibianco.github.io/picsim/> (or the Moodle activity your instructor set up).
+1. Open <https://santibianco.github.io/SimuPIC/> (or the Moodle activity your instructor set up).
 2. Pick your lab from the **Placa** dropdown (e.g. *TP - Simple*).
 3. **Cargar programa (.hex)** — load the `.hex` you built in MPLAB.
 4. Watch it run and click the buttons (*Pulsador*) to interact. **Reiniciar** power-cycles
@@ -164,7 +164,7 @@ These are the only digital-behavior gaps; everything else tracks the datasheet.
 ## Repo structure
 
 ```
-picsim/
+SimuPIC/
 ├── README.md                  ← this file
 ├── STATUS.md                  ← live status + build/test/run commands
 ├── DEPLOY.md                  ← GitHub Pages deploy + Moodle embed
@@ -218,5 +218,5 @@ the embed and serving are plain Node. Full notes and gotchas: [`STATUS.md`](STAT
 GitHub Pages, built by [`.github/workflows/pages.yml`](.github/workflows/pages.yml).
 One-time: **Settings → Pages → Source = GitHub Actions**, then `git push`. The workflow
 publishes `runtime/` (without the instructor authoring page) to
-<https://santibianco.github.io/picsim/>, and the same URL embeds in Moodle via an iframe.
+<https://santibianco.github.io/SimuPIC/>, and the same URL embeds in Moodle via an iframe.
 Step-by-step: [`DEPLOY.md`](DEPLOY.md).

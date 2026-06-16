@@ -1,8 +1,8 @@
-# picsim — project status
+# SimuPIC — project status
 
 A browser-based, OS-agnostic, **cycle-accurate PIC16F628A simulator** for the
 classroom (codename *New Proteus*). **Shipped and live:**
-<https://santibianco.github.io/picsim/>. See `README.md` (overview), `DEPLOY.md`
+<https://santibianco.github.io/SimuPIC/>. See `README.md` (overview), `DEPLOY.md`
 (hosting + Moodle), and `docs/architecture.md` (the load-bearing spec).
 
 ## Layout
@@ -36,7 +36,7 @@ classroom (codename *New Proteus*). **Shipped and live:**
   labels, live preview, export/import JSON. Round-trips to the student runtime.
 - **PWA**: `manifest.json` + network-first `sw.js` (offline + installable) +
   responsive canvas. Deploy via `.github/workflows/pages.yml`; see `DEPLOY.md`.
-- **Deployed & live** at <https://santibianco.github.io/picsim/> (GitHub Pages via
+- **Deployed & live** at <https://santibianco.github.io/SimuPIC/> (GitHub Pages via
   Action on every push); embeddable in Moodle. First instructor board bundled:
   *TP - Simple*.
 

@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#0d1117" />
 <link rel="manifest" href="manifest.json" />
 <link rel="icon" type="image/svg+xml" href="icon.svg" />
-<title>picsim — PIC16F628A simulator</title>
+<title>SimuPIC — PIC16F628A simulator</title>
 <style>
   :root { color-scheme: dark; }
   body {
@@ -34,7 +34,7 @@
 </style>
 </head>
 <body>
-  <h1>picsim</h1>
+  <h1>SimuPIC</h1>
   <div class="sub">Simulador del PIC16F628A en el navegador — núcleo Rust ciclo a ciclo (WASM)</div>
 
   <div class="panel">
@@ -209,9 +209,8 @@ function drawSeven(ctx,x,y,b){
 function drawButton(ctx,x,y,pressed,label){
   ctx.save(); ctx.fillStyle=pressed?"#2ea043":"#21262d"; ctx.strokeStyle="#30363d"; ctx.lineWidth=2;
   roundRect(ctx,x,y,72,44,9); ctx.fill(); ctx.stroke();
-  ctx.fillStyle="#e6edf3"; ctx.font="12px ui-monospace, monospace"; ctx.textAlign="center";
-  ctx.fillText(label,x+36,y+22); ctx.fillStyle="#8b949e"; ctx.font="9px ui-monospace, monospace";
-  ctx.fillText("mantené",x+36,y+36); ctx.restore();
+  ctx.fillStyle="#e6edf3"; ctx.font="12px ui-monospace, monospace"; ctx.textAlign="center"; ctx.textBaseline="middle";
+  ctx.fillText(label,x+36,y+22); ctx.restore();
 }
 function roundRect(ctx,x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y);
   ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
