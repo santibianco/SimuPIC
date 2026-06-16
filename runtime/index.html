@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#0d1117" />
 <link rel="manifest" href="manifest.json" />
 <link rel="icon" type="image/svg+xml" href="icon.svg" />
-<title>New Proteus — PIC16F628A simulator</title>
+<title>picsim — PIC16F628A simulator</title>
 <style>
   :root { color-scheme: dark; }
   body {
@@ -34,31 +34,31 @@
 </style>
 </head>
 <body>
-  <h1>New Proteus</h1>
-  <div class="sub">Browser PIC16F628A simulator — cycle-accurate Rust core (WASM)</div>
+  <h1>picsim</h1>
+  <div class="sub">Simulador del PIC16F628A en el navegador — núcleo Rust ciclo a ciclo (WASM)</div>
 
   <div class="panel">
-    <span id="wasmWrap"><label class="file">Load core (.wasm)<input id="wasmFile" type="file" accept=".wasm" /></label></span>
-    <label class="file">Load firmware (.hex)<input id="hexFile" type="file" accept=".hex" /></label>
-    <label class="file">Load diagram (.json)<input id="diagFile" type="file" accept=".json,application/json" /></label>
-    <button id="demoBtn" disabled>Blink demo</button>
-    <button id="segBtn" disabled>7-seg demo</button>
-    <button id="muxBtn" disabled>2-digit demo</button>
-    <button id="eeBtn" disabled>EEPROM demo</button>
-    <button id="runBtn" disabled>Run</button>
-    <button id="resetBtn" disabled>Reset</button>
-    <div class="speed">Clock
+    <span id="wasmWrap"><label class="file">Cargar núcleo (.wasm)<input id="wasmFile" type="file" accept=".wasm" /></label></span>
+    <label class="file">Cargar programa (.hex)<input id="hexFile" type="file" accept=".hex" /></label>
+    <label class="file">Cargar diagrama (.json)<input id="diagFile" type="file" accept=".json,application/json" /></label>
+    <label class="speed">Placa
+      <select id="labSelect" disabled style="background:#21262d;color:#e6edf3;border:1px solid #30363d;border-radius:7px;padding:7px 10px;font-size:13px"></select>
+    </label>
+    <button id="runBtn" disabled>Ejecutar</button>
+    <button id="resetBtn" disabled>Reiniciar</button>
+    <div class="speed">Reloj
       <input id="clock" type="text" value="4 MHz" style="width:88px; background:#21262d; color:#e6edf3; border:1px solid #30363d; border-radius:6px; padding:6px 8px; font-family:ui-monospace,monospace" />
       <span id="clockVal" class="status ok">4,000,000 Hz</span>
     </div>
   </div>
 
   <canvas id="board" width="920" height="640"></canvas>
-  <div id="status" class="status">Loading core…</div>
+  <div id="status" class="status">Cargando núcleo…</div>
 
 <!-- Optional embedded core: `core-wasm.js` defines window.NP_WASM_BASE64 so the
      page is self-contained and you only pick a .hex. Missing file is harmless. -->
 <script src="core-wasm.js" onerror="window.__npNoEmbed=true"></script>
+<script src="labs.js" onerror="window.__npNoLabs=true"></script>
 <script>
 "use strict";
 
@@ -211,7 +211,7 @@ function drawButton(ctx,x,y,pressed,label){
   roundRect(ctx,x,y,72,44,9); ctx.fill(); ctx.stroke();
   ctx.fillStyle="#e6edf3"; ctx.font="12px ui-monospace, monospace"; ctx.textAlign="center";
   ctx.fillText(label,x+36,y+22); ctx.fillStyle="#8b949e"; ctx.font="9px ui-monospace, monospace";
-  ctx.fillText("hold",x+36,y+36); ctx.restore();
+  ctx.fillText("mantené",x+36,y+36); ctx.restore();
 }
 function roundRect(ctx,x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y);
   ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
@@ -245,36 +245,67 @@ requestAnimationFrame(frame);
 // ===== controls =====
 function setStatus(m,c){ statusEl.innerHTML=m; statusEl.className="status "+(c||""); }
 function enable(ids,on){ ids.forEach((id)=>document.getElementById(id).disabled=!on); }
-function coreReady(){ enable(["demoBtn","segBtn","muxBtn","eeBtn"],true); }
+function coreReady(){ populateLabs(); enable(["labSelect"],true); }
 function setDiagram(d){ components=build(d); }
-function afterHex(ok,name){ if(!ok){ setStatus("Failed to parse "+name,"err"); return; }
+function afterHex(ok,name){ if(!ok){ setStatus("No se pudo leer "+name,"err"); return; }
   X.np_reset(); for(const c of components) if(c.idle) c.idle();
   enable(["runBtn","resetBtn"],true);
-  running=true; document.getElementById("runBtn").textContent="Pause";
-  setStatus("Loaded "+name+" ✓ — running.","ok"); }
+  running=true; document.getElementById("runBtn").textContent="Pausar";
+  setStatus("Cargado "+name+" ✓ — ejecutando.","ok"); }
 
 document.getElementById("wasmFile").addEventListener("change", async (e)=>{
   const f=e.target.files[0]; if(!f) return;
-  try{ await instantiate(await f.arrayBuffer()); coreReady(); setStatus("Core loaded ✓ — pick a demo or a .hex.","ok"); }
-  catch(err){ setStatus("WASM load failed: "+err,"err"); }
+  try{ await instantiate(await f.arrayBuffer()); coreReady(); setStatus("Núcleo cargado ✓ — elegí una placa o cargá un .hex.","ok"); }
+  catch(err){ setStatus("Error al cargar el WASM: "+err,"err"); }
 });
 document.getElementById("hexFile").addEventListener("change", async (e)=>{ const f=e.target.files[0]; if(!f||!X) return; afterHex(loadHex(await f.text()),f.name); });
 document.getElementById("diagFile").addEventListener("change", async (e)=>{ const f=e.target.files[0]; if(!f) return;
-  try{ const d=JSON.parse(await f.text()); if(!d||!Array.isArray(d.components)) throw new Error("missing components[]");
+  try{ const d=JSON.parse(await f.text()); if(!d||!Array.isArray(d.components)) throw new Error("falta components[]");
     setDiagram(d); if(d.clock_hz) setClock(d.clock_hz+" Hz"); for(const c of components) if(c.idle) c.idle();
-    setStatus("Loaded diagram: "+(d.name||f.name)+" ✓ — now load a .hex for it.","ok");
-  }catch(err){ setStatus("Bad diagram: "+err,"err"); } });
+    setStatus("Diagrama cargado: "+(d.name||f.name)+" ✓ — ahora cargá un .hex.","ok");
+  }catch(err){ setStatus("Diagrama inválido: "+err,"err"); } });
 function setClock(str){ document.getElementById("clock").value=str; applyClock(); }
-document.getElementById("demoBtn").addEventListener("click", ()=>{ if(X){ setClock("1 kHz"); setDiagram(LED_DIAGRAM); afterHex(loadHex(BLINK_HEX),"blink demo"); } });
-document.getElementById("segBtn").addEventListener("click", ()=>{ if(X){ setClock("4 MHz"); setDiagram(SEG_DIAGRAM); afterHex(loadHex(SEG_COUNTER_HEX),"7-seg counter"); } });
-document.getElementById("muxBtn").addEventListener("click", ()=>{ if(X){ setClock("4 MHz"); setDiagram(LAB_DIAGRAM); afterHex(loadHex(MUX_COUNTER_HEX),"2-digit counter"); } });
-document.getElementById("eeBtn").addEventListener("click", ()=>{ if(X){ setClock("4 MHz"); setDiagram(SEG_DIAGRAM); afterHex(loadHex(EEPROM_COUNTER_HEX),"EEPROM counter"); setStatus("EEPROM demo ✓ — press Reset to power-cycle; the count survives.","ok"); } });
-document.getElementById("runBtn").addEventListener("click", ()=>{ running=!running; document.getElementById("runBtn").textContent=running?"Pause":"Run"; });
+// ===== boards / labs (demos are built in; instructor boards come from labs.js) =====
+const BUILTIN_LABS = [
+  { name:"Ejemplo · Parpadeo (LED en RB0)",                   diagram:LED_DIAGRAM, hex:BLINK_HEX,          clock:"1 kHz" },
+  { name:"Ejemplo · Contador de 7 segmentos",                 diagram:SEG_DIAGRAM, hex:SEG_COUNTER_HEX,    clock:"4 MHz" },
+  { name:"Ejemplo · Contador multiplexado de 2 dígitos",      diagram:LAB_DIAGRAM, hex:MUX_COUNTER_HEX,    clock:"4 MHz" },
+  { name:"Ejemplo · Contador EEPROM (sobrevive al Reiniciar)",diagram:SEG_DIAGRAM, hex:EEPROM_COUNTER_HEX, clock:"4 MHz" },
+];
+// labs.js may set window.NP_LABS to authoring-tool exports ({name, components})
+// or full lab objects ({name, diagram, hex?, clock?}).
+const USER_LABS = (Array.isArray(window.NP_LABS) ? window.NP_LABS : [])
+  .map((d)=> d && d.components && !d.diagram ? { name:d.name||"Placa sin nombre", diagram:d } : d)
+  .filter((l)=> l && l.diagram);
+const LABS = BUILTIN_LABS.concat(USER_LABS);
+
+function populateLabs(){
+  const sel=document.getElementById("labSelect");
+  const boards=LABS.filter((l)=>!l.hex), demos=LABS.filter((l)=>l.hex);
+  let html='<option value="">— elegí una placa o ejemplo —</option>';
+  if(boards.length) html+='<optgroup label="Trabajos prácticos">'+boards.map((l)=>`<option value="${LABS.indexOf(l)}">${l.name}</option>`).join("")+'</optgroup>';
+  html+='<optgroup label="Ejemplos">'+demos.map((l)=>`<option value="${LABS.indexOf(l)}">${l.name}</option>`).join("")+'</optgroup>';
+  sel.innerHTML=html;
+}
+document.getElementById("labSelect").addEventListener("change", (e)=>{
+  const v=e.target.value; if(v===""||!X) return;
+  const lab=LABS[+v];
+  setClock(lab.clock||"4 MHz");
+  setDiagram(lab.diagram);
+  if(lab.hex){
+    afterHex(loadHex(lab.hex), lab.name);
+    if(/eeprom/i.test(lab.name)) setStatus("Cargado "+lab.name+" ✓ — apretá Reiniciar para cortar la energía; el conteo se mantiene.","ok");
+  }else{
+    for(const c of components) if(c.idle) c.idle();
+    setStatus("Placa “"+lab.name+"” cargada ✓ — ahora cargá tu programa (.hex).","ok");
+  }
+});
+document.getElementById("runBtn").addEventListener("click", ()=>{ running=!running; document.getElementById("runBtn").textContent=running?"Pausar":"Ejecutar"; });
 document.getElementById("resetBtn").addEventListener("click", ()=>{ X.np_reset(); for(const c of components) if(c.idle) c.idle(); });
 function parseClock(s){ s=(s||"").trim().toLowerCase().replace(/hz$/,"").trim(); const m=/^([0-9]*\.?[0-9]+)\s*([kmg]?)$/.exec(s); if(!m)return null; const mult={k:1e3,m:1e6,g:1e9}[m[2]]||1; return Math.round(parseFloat(m[1])*mult); }
 function applyClock(){ const v=parseClock(document.getElementById("clock").value); const el=document.getElementById("clockVal");
-  if(v&&v>0){ clockHz=v; if(X)X.np_set_clock_hz(v); el.textContent=v.toLocaleString()+" Hz"; el.className="status ok"; }
-  else { el.textContent="invalid"; el.className="status err"; } }
+  if(v&&v>0){ clockHz=v; if(X)X.np_set_clock_hz(v); el.textContent=v.toLocaleString("es-AR")+" Hz"; el.className="status ok"; }
+  else { el.textContent="inválido"; el.className="status err"; } }
 document.getElementById("clock").addEventListener("input", applyClock);
 applyClock();
 
@@ -287,10 +318,10 @@ window.addEventListener("DOMContentLoaded", async ()=>{
   if(window.NP_WASM_BASE64){
     try{ await instantiate(b64ToBytes(window.NP_WASM_BASE64)); coreReady();
       document.getElementById("wasmWrap").classList.add("hidden");
-      setStatus("Core ready ✓ — pick a demo (Blink / 7-seg) or load a .hex.","ok"); return;
-    }catch(err){ setStatus("Embedded core failed: "+err,"err"); }
+      setStatus("Núcleo listo ✓ — elegí una placa o ejemplo, o cargá un .hex.","ok"); return;
+    }catch(err){ setStatus("Falló el núcleo incrustado: "+err,"err"); }
   }
-  setStatus("Load the core (.wasm) to begin — or embed it (see runtime/README.md).");
+  setStatus("Cargá el núcleo (.wasm) para empezar — o incrustralo (ver runtime/README.md).");
 });
 
 // PWA: register the service worker (offline + installable). Needs https or localhost.

@@ -1,0 +1,26 @@
+{
+  "name": "My lab board",
+  "components": [
+    {
+      "type": "sevenseg",
+      "pins": [
+        "RB1",
+        "RB2",
+        "RB3",
+        "RB4",
+        "RB5",
+        "RB6",
+        "RB7"
+      ],
+      "common": "",
+      "commonActiveLow": false,
+      "label": "Digit"
+    },
+    {
+      "type": "button",
+      "pin": "RB0",
+      "activeLow": true,
+      "label": "Button"
+    }
+  ]
+}

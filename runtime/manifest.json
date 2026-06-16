@@ -1,6 +1,6 @@
 {
-  "name": "New Proteus — PIC16F628A Simulator",
-  "short_name": "New Proteus",
+  "name": "picsim — PIC16F628A Simulator",
+  "short_name": "picsim",
   "description": "Cycle-accurate browser simulator for the PIC16F628A microcontroller.",
   "start_url": "./",
   "scope": "./",

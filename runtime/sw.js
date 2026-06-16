@@ -1,8 +1,8 @@
-// New Proteus service worker — network-first so the app is always fresh when
-// online (no stale caching during development) and fully usable offline after
-// the first visit. The whole app is ~100 KB static, so this is cheap.
-const CACHE = "new-proteus-v1";
-const SHELL = ["./", "./index.html", "./core-wasm.js", "./manifest.json", "./icon.svg"];
+// picsim service worker — network-first so the app is always fresh when online
+// (no stale caching during development) and fully usable offline after the
+// first visit. The whole app is ~100 KB static, so this is cheap.
+const CACHE = "picsim-v1";
+const SHELL = ["./", "./index.html", "./core-wasm.js", "./labs.js", "./manifest.json", "./icon.svg"];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(

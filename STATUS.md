@@ -8,8 +8,9 @@ load-bearing spec — timing model + core interface).
 
 - `core/` — Rust → WASM cycle-accurate simulation core (the heart). ~60 tests.
 - `runtime/` — browser UI (the deployable student app): `index.html` (WASM loader
-  + Canvas board), `core-wasm.js` (embedded core, generated), `manifest.json` +
-  `sw.js` + `icon.svg` (PWA), `authoring.html` (instructor-only diagram editor).
+  + Canvas board), `core-wasm.js` (embedded core, generated), `labs.js` (instructor
+  lab boards → the "pick a board" dropdown), `manifest.json` + `sw.js` + `icon.svg`
+  (PWA), `authoring.html` (instructor-only diagram editor).
 - `serve.js` (project root) — tiny static server for local dev (`node serve.js`).
 - `DEPLOY.md` + `.github/workflows/pages.yml` — GitHub Pages deploy + Moodle embed.
 - `examples/` — real MPLAB lab `.hex`/`.asm` pairs used as decode cross-checks.
@@ -59,8 +60,8 @@ file wrangling can be done from the agent's mounted shell.
 
 - **Deploy**: push to GitHub + enable Pages (Settings → Pages → Source = GitHub
   Actions); see `DEPLOY.md`. Then embed the URL in Moodle.
-- Bundled "Select lab" dropdown in the student app — for now students use
-  *Load diagram (.json)* + *Load firmware (.hex)*.
+- More instructor lab boards: build them in `authoring.html`, paste the export
+  into `runtime/labs.js` → they appear in the student "pick a board" dropdown.
 - Authoring niceties: drag-to-position, "Test against a .hex" preview, honor
   `x`/`y` in the runtime (currently auto-placed around the chip).
 - (simplified) internal pull-ups (RBPU) — not modeled; add if a lab needs it.
