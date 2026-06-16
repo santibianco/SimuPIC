@@ -5,6 +5,11 @@ frame-sampling model described here are the ~20% of the project that everything 
 depends on. Get this right and the components and UI are mostly mechanical. Get it
 wrong and the whole thing feels flaky in exactly the way SimulIDE does.
 
+> **Status:** fully implemented and shipped — see `STATUS.md` and `README.md`. The
+> C-ABI exports are prefixed `np_` (e.g. `np_load_hex`, `np_run_cycles`,
+> `np_read_portb`, `np_set_pin`); the conceptual names below describe the contract,
+> not the literal symbols.
+
 ---
 
 ## 1. Time model: cycles are the master clock
@@ -87,9 +92,10 @@ display firmware uses them constantly:
 - **RB0/INT external interrupt (INTF)** — common with buttons.
 - **PORTB interrupt-on-change (RBIF)** — common with buttons.
 
-### Can be stubbed initially
-The comparators, USART, CCP/PWM module, and EEPROM are rarely touched by LED/button/
-display labs. Stub them (reads return sane defaults, writes accepted/ignored) and
+### Implemented since this spec
+**EEPROM** (EECON1/EECON2 unlock, non-volatile across reset/power-cycle) is now fully
+implemented — labs that persist state across power cycles work. The comparators, USART,
+and CCP/PWM module remain stubbed (reads return sane defaults, writes accepted/ignored);
 implement later only if a lab needs them.
 
 ### Memory / CPU correctness points that need care (not difficulty, just precision)
@@ -186,3 +192,6 @@ when.
 
 Throughout: maintain the **MPLAB-comparison test suite** (§ trust anchor in README) so
 every core change is checked cycle-by-cycle against ground truth.
+
+**All six steps are complete** — plus EEPROM, a Spanish installable-PWA runtime with a
+lab selector, the authoring tool, and GitHub Pages deployment. 82 tests passing.

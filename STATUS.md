@@ -1,12 +1,13 @@
-# New Proteus — project status
+# picsim — project status
 
 A browser-based, OS-agnostic, **cycle-accurate PIC16F628A simulator** for the
-classroom. See `README.md` (overview) and `docs/architecture.md` (the
-load-bearing spec — timing model + core interface).
+classroom (codename *New Proteus*). **Shipped and live:**
+<https://santibianco.github.io/picsim/>. See `README.md` (overview), `DEPLOY.md`
+(hosting + Moodle), and `docs/architecture.md` (the load-bearing spec).
 
 ## Layout
 
-- `core/` — Rust → WASM cycle-accurate simulation core (the heart). ~60 tests.
+- `core/` — Rust → WASM cycle-accurate simulation core (the heart). 82 tests.
 - `runtime/` — browser UI (the deployable student app): `index.html` (WASM loader
   + Canvas board), `core-wasm.js` (embedded core, generated), `labs.js` (instructor
   lab boards → the "pick a board" dropdown), `manifest.json` + `sw.js` + `icon.svg`
@@ -25,8 +26,9 @@ load-bearing spec — timing model + core interface).
 - **Per-pin on-time sampling** for 7-seg persistence of vision. (step 3)
 - **Input pins**: TRIS-aware reads + `set_pin` (buttons) + RB0/INT + PORTB-change. (step 4 core)
 - **WASM**: dependency-free C-ABI (no wasm-pack) — `core/src/wasm.rs`.
-- **Browser runtime**: DIP-18 board, LEDs / 7-seg / buttons, clock control, JSON
-  diagram loading, blink + 7-seg + 2-digit-mux + EEPROM demos. Verified in-browser.
+- **Browser runtime**: DIP-18 board, LEDs / 7-seg / buttons, clock control, a
+  "pick a board" lab dropdown (`labs.js`), JSON diagram loading, four demos, and a
+  **Spanish (es-AR) UI**. Verified in-browser.
 - **EEPROM** (EECON1/EECON2 unlock; persists across reset/power-cycle). Demo
   climbs 1→2→3 across the Reset (power-cycle) button. (step 5)
 - **Authoring tool** (`runtime/authoring.html`, instructor-only): visual editor —
@@ -34,6 +36,9 @@ load-bearing spec — timing model + core interface).
   labels, live preview, export/import JSON. Round-trips to the student runtime.
 - **PWA**: `manifest.json` + network-first `sw.js` (offline + installable) +
   responsive canvas. Deploy via `.github/workflows/pages.yml`; see `DEPLOY.md`.
+- **Deployed & live** at <https://santibianco.github.io/picsim/> (GitHub Pages via
+  Action on every push); embeddable in Moodle. First instructor board bundled:
+  *TP - Simple*.
 
 ## Build / test / run
 
@@ -56,13 +61,12 @@ node serve.js        # -> http://localhost:8080
 Division of labor: the wasm build runs on the Windows host; the embed step and
 file wrangling can be done from the agent's mounted shell.
 
-## Pending / next
+## Pending / next (all optional — the project is shipped)
 
-- **Deploy**: push to GitHub + enable Pages (Settings → Pages → Source = GitHub
-  Actions); see `DEPLOY.md`. Then embed the URL in Moodle.
+- Embed the live URL in the Moodle course (iframe snippet in `DEPLOY.md`).
 - More instructor lab boards: build them in `authoring.html`, paste the export
-  into `runtime/labs.js` → they appear in the student "pick a board" dropdown.
-- Authoring niceties: drag-to-position, "Test against a .hex" preview, honor
+  into `runtime/labs.js`, push → they appear in the student "pick a board" dropdown.
+- Authoring niceties: drag-to-position, a "Test against a .hex" preview, honor
   `x`/`y` in the runtime (currently auto-placed around the chip).
 - (simplified) internal pull-ups (RBPU) — not modeled; add if a lab needs it.
 

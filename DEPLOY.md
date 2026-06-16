@@ -39,6 +39,11 @@ and a GitHub Action republishes the app automatically on every later push.
 Share that URL with students — done. The workflow publishes `runtime/` **without**
 `authoring.html`, so your instructor editor never reaches the public site.
 
+> **If your first push failed** with *"Get Pages site failed… verify that the repository
+> has Pages enabled"*, it simply ran before you set the Source above. Re-run it: the
+> **Actions** tab → open the failed run → **Re-run all jobs** (or push any new commit).
+> It succeeds once Pages is enabled.
+
 ## Updating the app
 
 Anything you change under `runtime/` (a new bundled lab diagram, a UI tweak) goes

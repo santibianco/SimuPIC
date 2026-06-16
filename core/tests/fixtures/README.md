@@ -26,5 +26,4 @@ MPLAB-built `.hex` files used to cross-check the core against real firmware.
    ```
 
 This catches decode/encoding mistakes immediately. The deeper, cycle-by-cycle
-execute comparison against MPLAB's simulator comes once instruction execute is
-implemented (next pass).
+execute comparison against MPLAB's simulator is covered by the 82-test suite (integration.rs, examples.rs).

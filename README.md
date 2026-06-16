@@ -1,10 +1,38 @@
-# New Proteus — Browser-Based PIC16F628A Simulator
+# picsim — Browser-Based PIC16F628A Simulator
 
-A web-based, OS-agnostic simulator for running and visually testing PIC microcontroller
-firmware against simple digital components (LEDs, 7-segment displays, buttons).
+**Live:** <https://santibianco.github.io/picsim/>
 
-Built for **classroom use**: students write firmware in their existing IDE (MPLAB),
-compile to a `.hex` file, and load it into a browser to watch it drive a virtual board.
+A web-based, OS-agnostic, **cycle-accurate** simulator for running and visually testing
+PIC16F628A firmware against simple digital components (LEDs, 7-segment displays, buttons).
+
+Built for the **classroom**: students write firmware in MPLAB, compile to a `.hex`, open
+the URL (or a Moodle embed), pick the lab board, load their `.hex`, and watch it drive a
+virtual board — on any laptop or phone, online or offline. (Originally codenamed
+*New Proteus*.)
+
+---
+
+## Status — shipped ✅
+
+Everything below is implemented, tested, and deployed.
+
+- **Cycle-accurate CPU** — all 35 PIC14 instructions, STATUS flags (Z / C / DC incl.
+  subtract borrow), 8-level stack, banked SFRs/RAM, FSR/INDF indirection, computed `PCL`
+  jumps, and exact per-instruction cycle counts.
+- **Peripherals** — TMR0 + prescaler + `T0IF`; interrupts (GIE, TMR0 / INT / PORTB-change,
+  `RETFIE`); **EEPROM** (EECON1/EECON2 unlock sequence, persists across reset / power-cycle).
+- **I/O** — TRIS-aware port reads, input pins & buttons (`set_pin`, RB0/INT, PORTB-change),
+  and per-pin on-time sampling for 7-segment persistence-of-vision.
+- **Browser runtime** — DIP-18 board with LEDs / 7-seg / buttons, processor-clock control,
+  a "pick a board" lab selector, four built-in demos, and JSON diagram loading. **Spanish
+  (es-AR) UI.** Installable **PWA** that runs fully offline after the first visit.
+- **Authoring tool** — instructor-only visual editor: place components, bind pins
+  (per-segment for a 7-seg), set button polarity, and export the diagram JSON.
+- **Trust** — **82 Rust tests** plus cross-checks against real MPLAB lab `.hex`/`.asm` pairs.
+
+**Deployed** to GitHub Pages by a GitHub Action on every push, and embeddable in Moodle —
+see [`DEPLOY.md`](DEPLOY.md). Day-to-day status and build commands live in
+[`STATUS.md`](STATUS.md); the design spec is [`docs/architecture.md`](docs/architecture.md).
 
 ---
 
@@ -15,87 +43,77 @@ The two existing options both fail for teaching digital PIC work:
 - **SimulIDE** — free and runs natively, but its PIC core is incomplete. Bit-level
   instructions like `BSF`/`BCF` don't behave correctly, so students end up debugging
   *correct* code. Once a simulator can't be trusted, it's useless as a teaching tool.
-- **Proteus** — accurate, but paid, Windows-only, and far heavier than needed. Its
-  crown jewel is SPICE-level analog co-simulation, which is overkill for a classroom
-  that only needs digital LEDs/displays/buttons. On Apple Silicon it also requires a
-  Windows VM (emulation on emulation).
+- **Proteus** — accurate, but paid, Windows-only, and far heavier than needed. Its crown
+  jewel is SPICE-level analog co-simulation, which is overkill for a classroom that only
+  needs digital LEDs / displays / buttons. On Apple Silicon it also requires a Windows VM.
 
-This project deliberately builds the *small, correct* tool that's missing: an accurate
+picsim deliberately builds the *small, correct* tool that's missing: an accurate
 single-chip digital simulator that runs in any browser on any OS.
-
----
-
-## Scope (deliberately narrow)
-
-These constraints are what make the project achievable. **Do not expand scope without
-revisiting the timing/architecture implications.**
-
-- **One chip only: PIC16F628A.** No configurable device abstraction. The 2K flash,
-  224 bytes RAM, SFR layout, banking, and peripheral set are all hardcoded to this part.
-- **Digital-only I/O.** No analog. No SPICE. No equation solver. A pin is `0` or `1`.
-  This removes ~90% of the genuine difficulty.
-- **Components: LEDs, 7-segment displays, buttons only.** No character LCD, no other parts.
-- **Students do not edit or build diagrams.** They load their `.hex` against a diagram
-  the instructor prepared, run it, and interact (click buttons). Diagram authoring is a
-  separate concern (see below).
-
-### Explicitly out of scope
-- Analog/SPICE simulation
-- Freeform wiring with drawn wires between pins
-- Any PIC other than the 16F628A
-- A built-in assembler (firmware comes in as Intel HEX from MPLAB)
-- Character LCD (HD44780) and other components
 
 ---
 
 ## The non-negotiable requirement: cycle-accuracy
 
-This is the single most important property of the whole project, and the thing SimulIDE
-got wrong.
-
-The two techniques students will use — **display multiplexing** and **button
+This is the single most important property of the project, and the thing SimulIDE got
+wrong. The two techniques students rely on — **display multiplexing** and **button
 debouncing** — are both fundamentally about *time*:
 
-- **Multiplexing** cycles through digits faster than the eye can detect (~kHz), relying
-  on persistence of vision to make all digits appear lit.
-- **Debouncing** measures elapsed time (a ~5–20ms window) to reject mechanical contact noise.
+- **Multiplexing** cycles through digits faster than the eye can detect (~kHz), relying on
+  persistence of vision to make all digits appear lit.
+- **Debouncing** measures an elapsed-time window (~5–20 ms) to reject contact noise.
 
-If the simulator's count of elapsed instruction cycles drifts from real PIC behavior,
-**both features break in ways that make students debug correct code** — multiplexed
-displays flicker or ghost, debounce routines misbehave. That is exactly the SimulIDE
-failure mode. So cycle-accuracy is not polish; it is the core requirement.
+If the simulator's count of elapsed instruction cycles drifts from a real PIC, both
+features break in ways that make students debug *correct* code. So cycle-accuracy is not
+polish; it is the core requirement — and it's what the 82-test suite defends.
 
-The good news: cycle-accuracy on a single known chip is very achievable. The 16F628A has
-a dead-simple timing model — every instruction is **1 instruction cycle (4 clocks)
+The 16F628A makes this achievable: every instruction is **1 instruction cycle (4 clocks)
 except branches and skips-taken, which are 2**. At 4 MHz, **1 instruction cycle = 1 µs**.
-No pipeline, no cache, no variable latency. You count cycles exactly by construction.
-
-See [`docs/architecture.md`](docs/architecture.md) for the full timing model and core
-interface — that document is the load-bearing spec.
+No pipeline, no cache, no variable latency — cycles are counted exactly by construction.
 
 ---
 
-## High-level architecture
+## Using picsim
+
+### Students
+1. Open <https://santibianco.github.io/picsim/> (or the Moodle activity your instructor set up).
+2. Pick your lab from the **Placa** dropdown (e.g. *TP - Simple*).
+3. **Cargar programa (.hex)** — load the `.hex` you built in MPLAB.
+4. Watch it run and click the buttons (*Pulsador*) to interact. **Reiniciar** power-cycles
+   the chip (RAM clears, EEPROM survives); **Reloj** changes the processor frequency.
+
+The first time you open it online, the browser offers to **Install** it — afterward it
+runs fully offline, as an app, with no internet needed.
+
+### Instructors
+1. Build a board in the authoring tool (`runtime/authoring.html`, run locally — see below):
+   add LEDs / 7-seg / buttons, assign pins, set button polarity, label them.
+2. **Export JSON** and paste it into [`runtime/labs.js`](runtime/labs.js) as a
+   `{ "name": "...", "components": [ ... ] }` entry.
+3. `git push` — the Action redeploys and your board appears in every student's **Placa**
+   dropdown.
+
+---
+
+## Architecture
 
 ```
 .hex (from MPLAB)
       │
       ▼
-┌─────────────────────────┐     loadHex / runCycles(n) / readPins / setPin
+┌─────────────────────────┐     load_hex / run_cycles(n) / read_pins / set_pin
 │   WASM core (Rust)      │◄──────────────────────────────────────────────┐
 │  single source of truth │                                                │
 │  for simulated time     │                                                │
-│  • CPU (~35 instrs)     │                                                │
+│  • CPU (35 instrs)      │                                                │
 │  • memory + banking     │                                                │
 │  • TMR0 + prescaler     │                                                │
-│  • interrupts (INT,     │                                                │
-│    PORTB-change)        │                                                │
+│  • interrupts + EEPROM  │                                                │
 │  • cycle scheduler      │                                                │
 └─────────────────────────┘                                                │
       │ pin states                                                         │
       ▼                                                                    │
 ┌─────────────────────────┐                                                │
-│  JS / Canvas runtime    │  each frame: runCycles(clock_hz / 4 / 60)      │
+│  JS / Canvas runtime    │  each frame: run_cycles(clock_hz / 4 / 60)     │
 │  • frame loop ──────────┼────────────────────────────────────────────────┘
 │  • 7-seg PoV rendering  │
 │  • LEDs, buttons        │
@@ -103,85 +121,102 @@ interface — that document is the load-bearing spec.
 └─────────────────────────┘
 ```
 
-- **Core in Rust → WebAssembly.** Runs identically in any browser on any OS. No server.
-  This is the clean answer to OS-agnosticism.
-- **Runtime in JS/TypeScript + Canvas (or SVG).** Renders components, captures button
-  clicks, calls into the WASM core.
+- **Core in Rust → WebAssembly.** Dependency-free C-ABI (no wasm-pack), base64-embedded
+  into the page so the app is a self-contained static bundle. Runs identically in any
+  browser on any OS — no server. This is the clean answer to OS-agnosticism.
+- **Runtime in a single HTML file + Canvas.** Renders components, captures button clicks,
+  and calls into the WASM core.
 - **The core is the single source of truth for time.** The render loop *samples* the
-  core's state; it never drives the simulation. (This separation is critical — see the
-  architecture doc.)
-
----
-
-## Two surfaces, one diagram format
-
-The project splits into two tools with different audiences:
-
-1. **Student runtime** (zero editing) — loads a fixed diagram + the student's `.hex`,
-   runs it, shows components reacting, lets the student click buttons. Most effort lives
-   in the WASM core, not this UI.
-
-2. **Authoring tool** (instructor creates diagrams) — places components and binds each to
-   specific pins, saves as a diagram file. **This is deferrable.** A diagram is just a
-   JSON file (see [`diagrams/lab-counter.example.json`](diagrams/lab-counter.example.json)),
-   so the first labs can be hand-written. A drag-and-drop editor is a later convenience
-   that reuses ~80% of the runtime's rendering code.
+  core's state each frame; it never drives the simulation. This separation is what makes
+  persistence-of-vision and debounce timing behave like real hardware.
 
 The pin-binding model is intentionally simple: components bind **directly to pin names**
-(e.g. `"RB0"`). There is no "net" or wire concept. A 7-seg maps to 7 named pins, an LED to
-one pin, a button drives one pin. That's the whole abstraction.
+(e.g. `"RB0"`). There is no net/wire concept — a 7-seg maps to 7 named pins, an LED to one
+pin, a button drives one pin. That's the whole abstraction.
 
 ---
 
-## Suggested repo structure
+## Scope (deliberately narrow)
+
+These constraints are what made the project achievable. **Do not expand scope without
+revisiting the timing/architecture implications.**
+
+- **One chip only: PIC16F628A.** Flash, RAM, SFR layout, banking, and peripherals are all
+  hardcoded to this part.
+- **Digital-only I/O.** No analog, no SPICE. A pin is `0` or `1`.
+- **Components: LEDs, 7-segment displays, buttons only.**
+- **Students don't build diagrams** — they load their `.hex` against an instructor's board.
+
+Explicitly out of scope: analog/SPICE, freeform drawn wiring, any other PIC, a built-in
+assembler (firmware arrives as Intel HEX from MPLAB), and character LCDs.
+
+### Known simplifications
+
+- **Internal pull-ups (RBPU) are not modeled.** Use external pull-ups/downs, or let the
+  diagram define the button's idle level (`activeLow`) — which is how the demos work.
+- **External TMR0 clock (T0CKI counting, `T0CS = 1`) is not modeled** — TMR0 counts the
+  internal instruction clock.
+
+These are the only digital-behavior gaps; everything else tracks the datasheet.
+
+---
+
+## Repo structure
 
 ```
-new-proteus/
-├── README.md              ← this file
-├── PROJECT_PROMPT.md      ← paste into Cowork when starting the project
-├── core/                  ← Rust → WASM (the cycle-accurate heart)
+picsim/
+├── README.md                  ← this file
+├── STATUS.md                  ← live status + build/test/run commands
+├── DEPLOY.md                  ← GitHub Pages deploy + Moodle embed
+├── PROJECT_PROMPT.md          ← original project brief
+├── serve.js                   ← tiny static dev server (node serve.js → :8080)
+├── .github/workflows/pages.yml← deploys runtime/ to GitHub Pages on push
+├── core/                      ← Rust → WASM, the cycle-accurate heart
 │   ├── src/
-│   │   ├── cpu.rs         ← fetch/decode/execute, ~35 instrs
-│   │   ├── memory.rs      ← banking, SFRs, FSR/INDF
-│   │   ├── timer.rs       ← TMR0 + prescaler
-│   │   ├── interrupts.rs  ← INT, PORTB-change
-│   │   ├── scheduler.rs   ← runCycles(n), cycle accounting
-│   │   └── lib.rs         ← WASM exports
+│   │   ├── cpu.rs             ← fetch/decode/execute, TMR0 tick, interrupts, EEPROM, sampling
+│   │   ├── decode.rs          ← 35-instruction decode + disassembler
+│   │   ├── memory.rs          ← banking, SFRs, TRIS-aware ports, FSR/INDF
+│   │   ├── timer.rs           ← TMR0 + prescaler
+│   │   ├── interrupts.rs      ← INT, TMR0, PORTB-change vectoring
+│   │   ├── scheduler.rs       ← run_cycles(n), cycle accounting, frame sampling
+│   │   ├── sampler.rs         ← per-pin on-time accumulation (PoV)
+│   │   ├── hex.rs             ← Intel HEX loader (program + config + EEPROM)
+│   │   ├── wasm.rs            ← dependency-free C-ABI exports (np_*)
+│   │   └── lib.rs             ← Core API
+│   ├── tests/                 ← 82 tests: integration.rs, examples.rs, fixtures/
 │   └── Cargo.toml
-├── runtime/               ← student-facing UI
-│   ├── index.html
-│   ├── sim.js             ← frame loop, calls runCycles(clock/4/60)
-│   ├── render.js          ← 7-seg PoV accumulation, LEDs, buttons
-│   └── diagram-loader.js
-├── diagrams/
-│   └── lab-counter.example.json
+├── runtime/                   ← the deployable student app
+│   ├── index.html             ← WASM loader + Canvas board + Spanish UI + lab dropdown
+│   ├── core-wasm.js           ← base64-embedded WASM core (generated)
+│   ├── labs.js                ← instructor lab boards (the "Placa" dropdown)
+│   ├── manifest.json + sw.js + icon.svg   ← PWA (installable + offline)
+│   └── authoring.html         ← instructor-only diagram editor
+├── diagrams/                  ← example diagram JSON
+├── examples/                  ← real MPLAB lab .hex/.asm pairs (decode cross-checks)
 └── docs/
-    └── architecture.md    ← timing model + core interface (the real spec)
+    └── architecture.md        ← timing model + core interface (the load-bearing spec)
 ```
 
 ---
 
-## Rough effort estimate (solo)
+## Build / develop
 
-| Milestone | Timeline |
-|---|---|
-| CPU core, cycle-accurate, correct 16F628A firmware (verified vs. MPLAB) | 2–3 weeks |
-| TMR0 + prescaler + interrupts (INT, PORTB-change) | 1–2 weeks |
-| Cycle-driven scheduler + frame sampling | ~1 week |
-| 7-seg with on-time/PoV rendering + LEDs + buttons | 1–2 weeks |
-| Student runtime (load hex + JSON diagram, run, click buttons) | ~1 week |
-| Hand-authored JSON diagrams | trivial |
-| Authoring GUI | deferred |
+```sh
+cd core && cargo test                                   # 1. run the 82-test suite
+cargo rustc --release --target wasm32-unknown-unknown --crate-type cdylib   # 2. build WASM
+# 3. embed it (the cdylib lands in release/DEPS/ — see STATUS.md step 3):
+node -e "const fs=require('fs');const b=fs.readFileSync('core/target/wasm32-unknown-unknown/release/deps/new_proteus_core.wasm').toString('base64');fs.writeFileSync('runtime/core-wasm.js','window.NP_WASM_BASE64=\"'+b+'\";');"
+node serve.js                                           # 4. run → http://localhost:8080
+#                                                       #    instructor editor → :8080/authoring.html
+```
 
-A correct, browser-based, classroom-trustworthy simulator is realistically a
-**~1.5–2 month solo project**, with real firmware running in the first couple of weeks.
+The WASM build runs on the host (needs Rust + the `wasm32-unknown-unknown` target);
+the embed and serving are plain Node. Full notes and gotchas: [`STATUS.md`](STATUS.md).
 
----
+## Deploy
 
-## The trust anchor: test against MPLAB
-
-The feature that makes this worth building is *correctness you can trust* — the exact
-thing SimulIDE lacked. Build a test suite of small PIC programs with known register
-outcomes (easy to generate from MPLAB's own simulator) and assert the core matches
-cycle-by-cycle. This test-driven approach is what separates "another flaky toy" from
-"the tool I actually use in class." Make it part of the core from day one.
+GitHub Pages, built by [`.github/workflows/pages.yml`](.github/workflows/pages.yml).
+One-time: **Settings → Pages → Source = GitHub Actions**, then `git push`. The workflow
+publishes `runtime/` (without the instructor authoring page) to
+<https://santibianco.github.io/picsim/>, and the same URL embeds in Moodle via an iframe.
+Step-by-step: [`DEPLOY.md`](DEPLOY.md).
