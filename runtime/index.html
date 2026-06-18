@@ -142,18 +142,20 @@ function build(diagram){
     if(c.type==="led"){
       const p=PIN[c.pin]||{x:CHIP.x,y:CHIP.y}; const dir=p.side==="R"?1:-1;
       const pos={x:p.x+dir*62, y:p.y}; const wire=[p.x,p.y,pos.x,pos.y];
-      return {on:0,n:0,reset(){this.on=0;this.n=0;},
+      return {on:0,n:0,b:0,reset(){this.on=0;this.n=0;},
         sample(pa,pb){ const lit=c.activeLow?pinVal(c.pin,pa,pb)===0:pinVal(c.pin,pa,pb)===1; if(lit)this.on++; this.n++; },
-        draw(ctx){ trace(ctx,wire); drawLed(ctx,pos.x,pos.y,this.n?this.on/this.n:0,c.label||c.pin); } };
+        integrate(a){ const d=this.n?this.on/this.n:0; this.b+=(d-this.b)*a; },
+        draw(ctx){ trace(ctx,wire); drawLed(ctx,pos.x,pos.y,this.b,c.label||c.pin); } };
     }
     if(c.type==="sevenseg"){
       const pos={x: segStartX + (si++)*(segW+segGap), y:455};
       const wires=c.pins.map((pn,i)=>{ const p=PIN[pn]||pos; return [p.x,p.y,pos.x+12+i*13,pos.y]; });
       const cp=c.common?PIN[c.common]:null; const cwire=cp?[cp.x,cp.y,pos.x+segW/2,pos.y+160]:null;
-      return {seg:[0,0,0,0,0,0,0],n:0,reset(){this.seg=[0,0,0,0,0,0,0];this.n=0;},
+      return {seg:[0,0,0,0,0,0,0],n:0,b:[0,0,0,0,0,0,0],reset(){this.seg=[0,0,0,0,0,0,0];this.n=0;},
         sample(pa,pb){ this.n++; const sel=c.common?(c.commonActiveLow?pinVal(c.common,pa,pb)===0:pinVal(c.common,pa,pb)===1):true;
           if(sel) for(let i=0;i<7;i++) if(pinVal(c.pins[i],pa,pb)===1) this.seg[i]++; },
-        draw(ctx){ for(const w of wires) trace(ctx,w); if(cwire) trace(ctx,cwire); drawSeven(ctx,pos.x,pos.y,this.seg.map((s)=>this.n?s/this.n:0)); } };
+        integrate(a){ for(let i=0;i<7;i++){ const d=this.n?this.seg[i]/this.n:0; this.b[i]+=(d-this.b[i])*a; } },
+        draw(ctx){ for(const w of wires) trace(ctx,w); if(cwire) trace(ctx,cwire); drawSeven(ctx,pos.x,pos.y,this.b); } };
     }
     if(c.type==="button"){
       const p=PIN[c.pin]||{x:CHIP.x,y:CHIP.y}; const dir=p.side==="R"?1:-1;
@@ -232,6 +234,9 @@ function frame(){
       let ran=0;
       for(let s=0;s<steps;s++){ X.np_run_cycles(per); ran+=per; const pa=X.np_read_porta(),pb=X.np_read_portb(); for(const c of components) c.sample(pa,pb); }
       if(ran<want) X.np_run_cycles(want-ran);
+      // Persist brightness across frames (~80 ms) so a slow multiplex spanning
+      // several frames still shows every digit, like the eye / real hardware.
+      for(const c of components) if(c.integrate) c.integrate(0.2);
     }
   }
   ctx.clearRect(0,0,canvas.width,canvas.height);
