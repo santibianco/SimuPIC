@@ -360,44 +360,90 @@ function loadHex(text){
 function b64ToBytes(b64){ const s=atob(b64),a=new Uint8Array(s.length); for(let i=0;i<s.length;i++)a[i]=s.charCodeAt(i); return a; }
 
 // ===== components (sub-frame sampled for honest multiplexing) =====
+// Labels-only board: no wires. Each component carries a pin badge (LED / button
+// → its pin; 7-seg → its segment pins + common), so students read the connection
+// by name and the layout is free to place parts wherever is clearest. build()
+// computes geometry + badge specs only; the sample/integrate timing is unchanged.
+function rangeLabel(pins){
+  const m=pins.map(p=>/^R([AB])([0-9])$/.exec(p));
+  if(m.every(Boolean) && m.every((x,i)=> x[1]===m[0][1] && (+x[2])===(+m[0][2]+i)))
+    return pins[0]+"–"+pins[pins.length-1];
+  return pins.join(" ");
+}
 function build(diagram){
+  wiring = { labels:[] };
   const segCount=diagram.components.filter(c=>c.type==="sevenseg").length;
-  const segW=110, segGap=42, segStartX=(920-(segCount*segW+Math.max(0,segCount-1)*segGap))/2;
+  const big=segCount<=2;
+  const SW=big?116:94, SH=big?140:124, GAP=big?42:28;
+  const DISP_TOP=446;
+  const totalW=segCount*SW+Math.max(0,segCount-1)*GAP, startX=(920-totalW)/2;
   let si=0;
   return diagram.components.map((c)=>{
     if(c.type==="led"){
       const p=PIN[c.pin]||{x:CHIP.x,y:CHIP.y}; const dir=p.side==="R"?1:-1;
-      const pos={x:p.x+dir*62, y:p.y}; const wire=[p.x,p.y,pos.x,pos.y];
+      const pos={x:p.x+dir*52, y:p.y};
+      wiring.labels.push({x:pos.x+dir*36, y:pos.y, text:c.pin, kind:"pin"});
+      if(c.label) wiring.labels.push({x:pos.x, y:pos.y-23, text:c.label, kind:"cap"});
       return {on:0,n:0,b:0,reset(){this.on=0;this.n=0;},
         sample(pa,pb){ const lit=c.activeLow?pinVal(c.pin,pa,pb)===0:pinVal(c.pin,pa,pb)===1; if(lit)this.on++; this.n++; },
         integrate(a){ const d=this.n?this.on/this.n:0; this.b+=(d-this.b)*a; },
-        draw(ctx){ trace(ctx,wire); drawLed(ctx,pos.x,pos.y,this.b,c.label||c.pin); } };
+        drawBody(ctx){ drawLed(ctx,pos.x,pos.y,this.b); } };
     }
     if(c.type==="sevenseg"){
-      const pos={x: segStartX + (si++)*(segW+segGap), y:455};
-      const wires=c.pins.map((pn,i)=>{ const p=PIN[pn]||pos; return [p.x,p.y,pos.x+12+i*13,pos.y]; });
-      const cp=c.common?PIN[c.common]:null; const cwire=cp?[cp.x,cp.y,pos.x+segW/2,pos.y+160]:null;
+      const pos={x: startX + (si++)*(SW+GAP), y:DISP_TOP};
+      wiring.labels.push({x:pos.x+SW/2, y:pos.y+SH+9, kind:"segbox", seg:rangeLabel(c.pins), com:c.common||null});
       return {seg:[0,0,0,0,0,0,0],n:0,b:[0,0,0,0,0,0,0],reset(){this.seg=[0,0,0,0,0,0,0];this.n=0;},
         sample(pa,pb){ this.n++; const sel=c.common?(c.commonActiveLow?pinVal(c.common,pa,pb)===0:pinVal(c.common,pa,pb)===1):true;
           if(sel) for(let i=0;i<7;i++) if(pinVal(c.pins[i],pa,pb)===1) this.seg[i]++; },
         integrate(a){ for(let i=0;i<7;i++){ const d=this.n?this.seg[i]/this.n:0; this.b[i]+=(d-this.b[i])*a; } },
-        draw(ctx){ for(const w of wires) trace(ctx,w); if(cwire) trace(ctx,cwire); drawSeven(ctx,pos.x,pos.y,this.b); } };
+        drawBody(ctx){ drawSeven(ctx,pos.x,pos.y,this.b,SW,SH); } };
     }
     if(c.type==="button"){
       const p=PIN[c.pin]||{x:CHIP.x,y:CHIP.y}; const dir=p.side==="R"?1:-1;
-      const pos={x:p.x+dir*80-(dir<0?72:0), y:p.y-22}; const wire=[p.x,p.y,(p.side==="R"?pos.x:pos.x+72),pos.y+22];
+      const bw=72, bh=44, pos={x:p.x+dir*84-(dir<0?bw:0), y:p.y-bh/2};
+      if(c.label) wiring.labels.push({x:pos.x+bw/2, y:pos.y+bh+13, text:c.pin, kind:"pin"});
       return {pressed:false,reset(){},sample(){},
         idle(){ if(X) X.np_set_pin(pinIndex(c.pin), c.activeLow?1:0); },
         press(v){ this.pressed=v; if(X) X.np_set_pin(pinIndex(c.pin), (v?!c.activeLow:c.activeLow)?1:0); },
-        hit(mx,my){ return mx>=pos.x&&mx<=pos.x+72&&my>=pos.y&&my<=pos.y+44; },
-        draw(ctx){ trace(ctx,wire); drawButton(ctx,pos.x,pos.y,this.pressed,c.label||c.pin); } };
+        hit(mx,my){ return mx>=pos.x&&mx<=pos.x+bw&&my>=pos.y&&my<=pos.y+bh; },
+        drawBody(ctx){ drawButton(ctx,pos.x,pos.y,this.pressed,c.label||c.pin); } };
     }
-    return {reset(){},sample(){},draw(){}};
+    return {reset(){},sample(){},drawBody(){}};
   });
 }
 
 // ===== drawing =====
-function trace(ctx,w){ ctx.strokeStyle="#3a6b4f"; ctx.lineWidth=2.5; ctx.beginPath(); ctx.moveTo(w[0],w[1]); ctx.lineTo(w[2],w[3]); ctx.stroke(); }
+// Label layer: a pin badge on each component (LED/button → pin, 7-seg → segment
+// pins + common). No wires — the connection is read by name, matching the pin
+// names on the chip. Drawn on top so it stays legible.
+function drawWiring(ctx){
+  if(!wiring) return;
+  ctx.save();
+  for(const lb of wiring.labels){
+    if(lb.kind==="segbox") drawSegBox(ctx,lb);
+    else if(lb.kind==="cap"){ ctx.font="9px ui-monospace, monospace"; ctx.fillStyle="#8fb3a0"; ctx.textAlign="center"; ctx.textBaseline="alphabetic"; ctx.fillText(lb.text, lb.x, lb.y); }
+    else drawPinBadge(ctx, lb.x, lb.y, lb.text);
+  }
+  ctx.restore();
+}
+function drawPinBadge(ctx,x,y,text){
+  ctx.font="bold 10px ui-monospace, monospace";
+  const w=ctx.measureText(text).width+12, h=16, bx=x-w/2, by=y-h/2;
+  roundRect(ctx,bx,by,w,h,5); ctx.fillStyle="rgba(16,34,26,0.92)"; ctx.fill();
+  ctx.lineWidth=1; ctx.strokeStyle="#3f7a5c"; ctx.stroke();
+  ctx.fillStyle="#bfe6d0"; ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.fillText(text,x,y); ctx.textBaseline="alphabetic";
+}
+function drawSegBox(ctx,lb){
+  ctx.font="9px ui-monospace, monospace";
+  const l1="seg "+lb.seg, l2=lb.com?"com "+lb.com:null;
+  const w=Math.max(ctx.measureText(l1).width, l2?ctx.measureText(l2).width:0)+14, h=l2?27:16, bx=lb.x-w/2, by=lb.y;
+  roundRect(ctx,bx,by,w,h,6); ctx.fillStyle="rgba(16,34,26,0.92)"; ctx.fill();
+  ctx.lineWidth=1; ctx.strokeStyle="#3f7a5c"; ctx.stroke();
+  ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.fillStyle="#bfe6d0";
+  ctx.fillText(l1, lb.x, by+(l2?9:8));
+  if(l2) ctx.fillText(l2, lb.x, by+19);
+  ctx.textBaseline="alphabetic";
+}
 function drawChip(ctx){
   ctx.fillStyle="#15191f"; ctx.strokeStyle="#454d57"; ctx.lineWidth=2;
   roundRect(ctx,CHIP.x,CHIP.y,CHIP.w,CHIP.h,8); ctx.fill(); ctx.stroke();
@@ -416,16 +462,15 @@ function drawChip(ctx){
     ctx.fillText(p.num, p.side==="L"?CHIP.x+12:CHIP.x+CHIP.w-12, p.y+3);
   }
 }
-function drawLed(ctx,x,y,b,label){
+function drawLed(ctx,x,y,b){
   ctx.save(); ctx.beginPath(); ctx.arc(x,y,15,0,Math.PI*2);
   const g=ctx.createRadialGradient(x,y,2,x,y,15);
   g.addColorStop(0,`rgba(255,90,70,${0.22+0.78*b})`); g.addColorStop(1,`rgba(110,18,18,${0.35+0.4*b})`);
   ctx.fillStyle=g; if(b>0.05){ctx.shadowColor="rgba(255,90,70,0.85)";ctx.shadowBlur=16*b;} ctx.fill();
   ctx.shadowBlur=0; ctx.lineWidth=2; ctx.strokeStyle="#30363d"; ctx.stroke(); ctx.restore();
-  ctx.fillStyle="#8b949e"; ctx.font="10px ui-monospace, monospace"; ctx.textAlign="center"; ctx.fillText(label,x,y+28);
 }
-function drawSeven(ctx,x,y,b){
-  const W=110,H=160,t=16;
+function drawSeven(ctx,x,y,b,W,H){
+  const t=Math.round(W*0.145);
   const s=[[x+t,y,W-2*t,t],[x+W-t,y+t,t,H/2-t],[x+W-t,y+H/2,t,H/2-t],[x+t,y+H-t,W-2*t,t],
            [x,y+H/2,t,H/2-t],[x,y+t,t,H/2-t],[x+t,y+H/2-t/2,W-2*t,t]];
   ctx.save(); ctx.fillStyle="#070d09"; ctx.strokeStyle="#30363d"; ctx.lineWidth=1;
@@ -445,6 +490,7 @@ function roundRect(ctx,x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y);
 
 // ===== loop =====
 const canvas=document.getElementById("board"), ctx=canvas.getContext("2d"), statusEl=document.getElementById("status");
+let wiring=null;
 let components=build(LED_DIAGRAM), running=false;
 let dbgOpen=false, dbgTick=0, dbgView="prog", dbgBank=0;
 const breakSet=new Set();
@@ -470,7 +516,8 @@ function frame(){
   }
   ctx.clearRect(0,0,canvas.width,canvas.height);
   drawChip(ctx);
-  for(const c of components) c.draw(ctx);
+  for(const c of components) c.drawBody(ctx);
+  drawWiring(ctx);
   if(dbgOpen && running && (++dbgTick % 6 === 0)) refreshDebug();
   requestAnimationFrame(frame);
 }

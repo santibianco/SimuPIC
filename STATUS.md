@@ -7,6 +7,16 @@ classroom (codename *New Proteus*). **Shipped and live:**
 
 ## Session log (newest first) — update this at the end of each session
 
+- **2026-06-18 (board view)** — Reworked how the board shows connections (`runtime/index.html`,
+  canvas drawing only — no core change). Explored a labeled segment bus and tidy direct
+  right-angle wiring, but both still read busy on the 4-display TP, so **settled on
+  labels-only**: *no wires at all* — every component carries a **pin badge** (LED / button →
+  its pin; 7-seg → a "seg RB1–RB7 · com RAx" badge), and students read each connection by name
+  against the chip's pin labels. This also frees the layout (displays moved up + enlarged,
+  parts placed for clarity). `build()` now emits badge specs only; `drawWiring()` renders the
+  badges on top; `sample`/`integrate` timing untouched. Verified in-browser on TP-Dificil
+  (4 displays + 2 buttons), the 2-digit mux (digits still persist + Status LED), and the
+  8-LED demo. *Uncommitted.*
 - **2026-06-18 (UI revamp)** — Reworked the runtime UI (`runtime/index.html`, CSS + layout
   only — **no core/wasm change**): **dark + light themes** via CSS variables with a **toggle**
   in the app bar (persisted in `localStorage` `np_theme`, no-flash inline head script,
