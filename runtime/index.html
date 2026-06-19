@@ -8,141 +8,277 @@
 <link rel="icon" type="image/svg+xml" href="icon.svg" />
 <title>SimuPIC — PIC16F628A simulator</title>
 <style>
-  :root { color-scheme: dark; }
-  body {
-    margin: 0; font-family: system-ui, sans-serif; background: #0d1117; color: #e6edf3;
-    display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 18px;
+  *, *::before, *::after { box-sizing: border-box; }
+
+  /* ===== themes: two palettes, friendly / classroom ===== */
+  [data-theme="dark"]{
+    color-scheme: dark;
+    --bg:#14161c; --surface:#1c2027; --surface-2:#242a33; --surface-3:#2d343f;
+    --border:#2e3540; --border-soft:#272d37;
+    --text:#eef1f6; --text-dim:#9aa6b4; --text-faint:#69727f;
+    --accent:#7c8cff; --accent-strong:#6a7bff; --accent-contrast:#ffffff; --accent-soft:rgba(124,140,255,.18);
+    --ok:#54cd8c; --err:#ff6b6b; --purple:#cda9ff;
+    --board:#0e1f17; --board-border:#2e3540;
+    --code-bg:#0b0f15; --code-border:#222a34; --code-row-hover:#161b22;
+    --code-text:#e6edf3; --code-addr:#6e7681; --code-word:#7cc7ff; --pc-row:rgba(84,205,140,.20);
+    --shadow:0 12px 34px rgba(0,0,0,.38); --shadow-sm:0 2px 8px rgba(0,0,0,.28);
   }
-  h1 { font-size: 18px; margin: 0; font-weight: 600; }
-  .sub { color: #8b949e; font-size: 13px; margin-top: -8px; }
-  .panel {
-    display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
-    background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 10px 14px;
+  [data-theme="light"]{
+    color-scheme: light;
+    --bg:#eef1f8; --surface:#ffffff; --surface-2:#f1f4fa; --surface-3:#e6ecf5;
+    --border:#dde3ee; --border-soft:#e8ecf4;
+    --text:#1b2330; --text-dim:#586271; --text-faint:#8b94a3;
+    --accent:#5868f5; --accent-strong:#4856e8; --accent-contrast:#ffffff; --accent-soft:rgba(88,104,245,.12);
+    --ok:#1a9d5f; --err:#e5484d; --purple:#7c4def;
+    --board:#0e1f17; --board-border:#cfd6e2;
+    --code-bg:#f3f6fc; --code-border:#dde3ee; --code-row-hover:#e9eef7;
+    --code-text:#1b2330; --code-addr:#8b94a3; --code-word:#3b5bdb; --pc-row:rgba(26,157,95,.16);
+    --shadow:0 12px 30px rgba(40,55,90,.12); --shadow-sm:0 2px 8px rgba(40,55,90,.08);
   }
-  button, label.file {
-    background: #21262d; color: #e6edf3; border: 1px solid #30363d; border-radius: 7px;
-    padding: 7px 12px; font-size: 13px; cursor: pointer;
+
+  body{
+    margin:0; min-height:100vh; color:var(--text);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: radial-gradient(1100px 380px at 50% -120px, var(--accent-soft), transparent 70%), var(--bg);
+    transition: background-color .2s ease, color .2s ease;
   }
-  button:hover, label.file:hover { background: #30363d; }
-  button:disabled { opacity: .45; cursor: not-allowed; }
-  input[type=file] { display: none; }
-  #board { background: #0a1f14; border: 1px solid #30363d; border-radius: 12px; width: 920px; max-width: 100%; height: auto; aspect-ratio: 920 / 640; }
-  .status { font-size: 12px; color: #8b949e; font-family: ui-monospace, monospace; }
-  .ok { color: #3fb950; } .err { color: #f85149; }
-  .speed { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #8b949e; }
-  #wasmWrap.hidden { display: none; }
-  .dbgToggle { background:#161b22; color:#9fb6c9; border:1px solid #30363d; border-radius:8px; padding:6px 12px; font-size:12px; font-family:ui-monospace,monospace; cursor:pointer; }
-  .dbgToggle:hover { background:#21262d; } .dbgToggle:disabled { opacity:.45; cursor:not-allowed; }
-  .dbgPanel { width:920px; max-width:100%; box-sizing:border-box; background:#0d1117; border:1px solid #30363d; border-radius:10px; padding:10px 14px; font-family:ui-monospace,monospace; font-size:12px; color:#9fb6c9; }
-  .dbgPanel.hidden { display:none; }
-  .dbgHeader { display:flex; flex-wrap:wrap; gap:8px 16px; align-items:center; }
-  .dbgHeader b { color:#e6edf3; font-weight:600; }
-  .dbgFlags { display:inline-flex; gap:4px; }
-  .dbgFlags span { padding:1px 5px; border-radius:4px; background:#21262d; color:#6e7681; }
-  .dbgFlags span.on { background:rgba(31,111,235,.25); color:#79c0ff; }
-  #stepBtn { background:#21262d; color:#e6edf3; border:1px solid #30363d; border-radius:7px; padding:5px 12px; font-size:12px; cursor:pointer; }
-  #stepBtn:hover { background:#30363d; } #stepBtn:disabled { opacity:.45; cursor:not-allowed; }
-  .dbgCaption { margin:10px 0 4px; color:#6e7681; font-size:11px; text-transform:uppercase; letter-spacing:.04em; }
-  .dbgProg { max-height:220px; overflow-y:auto; border:1px solid #21262d; border-radius:8px; background:#010409; }
-  .progRow { display:flex; gap:12px; padding:1px 10px; }
-  .progRow:hover { background:#161b22; }
-  .progRow.pc { background:rgba(63,185,80,.18); }
-  .progRow .pa { color:#6e7681; width:46px; }
-  .progRow .pw { color:#79c0ff; width:56px; }
-  .progRow .pm { color:#e6edf3; }
-  .dbgTabs { display:flex; gap:4px; margin:10px 0 6px; }
-  .dbgTab { background:#161b22; color:#8b949e; border:1px solid #30363d; border-radius:7px 7px 0 0; padding:4px 12px; font-size:12px; cursor:pointer; }
-  .dbgTab.active { background:#0d1117; color:#e6edf3; }
-  .dbgView.hidden { display:none; }
-  .dataBankBar { color:#6e7681; font-size:11px; margin-bottom:6px; display:flex; gap:5px; align-items:center; }
-  .bankBtn { background:#21262d; color:#9fb6c9; border:1px solid #30363d; border-radius:5px; padding:2px 9px; font-size:11px; cursor:pointer; }
-  .bankBtn.active { background:rgba(31,111,235,.25); color:#79c0ff; }
-  .dbgData { display:grid; grid-template-columns:auto repeat(16,1fr); gap:2px 6px; background:#010409; border:1px solid #21262d; border-radius:8px; padding:8px; font-size:11px; }
-  .dbgData .dlabel { color:#6e7681; padding-right:4px; }
-  .dbgData .dcell { color:#e6edf3; text-align:center; }
-  .dbgData .dcell.sfr { color:#d2a8ff; }
-  .dbgSFR { background:#010409; border:1px solid #21262d; border-radius:8px; padding:6px 8px; }
-  .sfrRow { display:flex; gap:10px; align-items:center; padding:1px 0; }
-  .sfrRow .sname { color:#9fb6c9; width:64px; } .sfrRow .sval { color:#e6edf3; width:46px; }
-  .sfrRow .sbin { color:#6e7681; width:72px; }
-  .sfrRow .sbits { display:inline-flex; gap:3px; flex-wrap:wrap; }
-  .sfrRow .sbits span { padding:0 4px; border-radius:3px; background:#21262d; color:#6e7681; font-size:10px; }
-  .sfrRow .sbits span.on { background:rgba(31,111,235,.25); color:#79c0ff; }
-  .watchBar { display:flex; gap:6px; margin-bottom:6px; }
-  .watchBar input { flex:0 0 170px; background:#010409; color:#e6edf3; border:1px solid #30363d; border-radius:6px; padding:4px 8px; font-family:ui-monospace,monospace; font-size:12px; }
-  .watchBar button { background:#21262d; color:#e6edf3; border:1px solid #30363d; border-radius:6px; padding:4px 12px; font-size:12px; cursor:pointer; }
-  .dbgWatch { background:#010409; border:1px solid #21262d; border-radius:8px; padding:6px 8px; min-height:28px; }
-  .watchEmpty { color:#6e7681; font-size:11px; }
-  .watchRow { display:flex; gap:10px; align-items:center; padding:1px 0; }
-  .watchRow .wname { color:#79c0ff; width:72px; } .watchRow .waddr { color:#6e7681; width:46px; }
-  .watchRow .wval { color:#e6edf3; width:46px; } .watchRow .wbin { color:#6e7681; width:72px; }
-  .watchRow .wdel { margin-left:auto; background:none; border:none; color:#6e7681; cursor:pointer; font-size:14px; line-height:1; }
-  .watchRow .wdel:hover { color:#f85149; }
-  #step10, #step100 { background:#21262d; color:#e6edf3; border:1px solid #30363d; border-radius:7px; padding:5px 9px; font-size:12px; cursor:pointer; }
-  #step10:hover, #step100:hover { background:#30363d; } #step10:disabled, #step100:disabled { opacity:.45; cursor:not-allowed; }
-  .progRow { cursor:pointer; }
-  .progRow .bp { width:9px; height:9px; border-radius:50%; border:1px solid #30363d; flex:0 0 auto; align-self:center; }
-  .progRow .bp.on { background:#f85149; border-color:#f85149; }
-  .dbgData .dcell, .dbgSFR .sval { cursor:pointer; }
-  .dbgData .dcell:hover, .dbgSFR .sval:hover { outline:1px solid #1f6feb; border-radius:3px; }
-  .cellEdit { width:34px; background:#0d1117; color:#79c0ff; border:1px solid #1f6feb; border-radius:3px; font-family:ui-monospace,monospace; font-size:11px; padding:0 2px; }
+
+  /* ===== app bar ===== */
+  .appbar{ position:sticky; top:0; z-index:30; display:flex; align-items:center; gap:12px;
+    padding:11px 20px; background:var(--surface); border-bottom:1px solid var(--border); box-shadow:var(--shadow-sm); }
+  .brand{ display:flex; align-items:center; gap:9px; }
+  .brand .logo{ color:var(--accent); }
+  .brand-name{ font-size:17px; font-weight:700; letter-spacing:.01em; }
+  .brand-tag{ font-size:11px; font-weight:600; color:var(--accent); background:var(--accent-soft);
+    border-radius:999px; padding:2px 9px; letter-spacing:.02em; }
+  .appbar-spacer{ flex:1; }
+  .iconbtn{ width:38px; height:38px; display:grid; place-items:center; border-radius:11px;
+    background:var(--surface-2); border:1px solid var(--border); color:var(--text-dim); cursor:pointer;
+    transition:background .12s, color .12s; }
+  .iconbtn:hover{ background:var(--surface-3); color:var(--text); }
+  [data-theme="dark"] .icon-moon{ display:none; }
+  [data-theme="light"] .icon-sun{ display:none; }
+
+  /* ===== layout ===== */
+  .layout{ display:flex; gap:20px; align-items:flex-start; max-width:1320px; margin:0 auto; padding:20px; }
+  .rail{ width:288px; flex:0 0 288px; display:flex; flex-direction:column; gap:14px; position:sticky; top:74px; }
+  .stage{ flex:1 1 auto; min-width:0; display:flex; flex-direction:column; align-items:center; gap:14px; }
+
+  /* ===== cards / controls ===== */
+  .card{ background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:14px; box-shadow:var(--shadow-sm); }
+  .card-title{ font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--text-faint); margin:0 0 10px; }
+  .btn{ display:inline-flex; align-items:center; justify-content:center; gap:7px;
+    background:var(--surface-2); color:var(--text); border:1px solid var(--border); border-radius:11px;
+    padding:9px 14px; font-size:13.5px; font-weight:500; font-family:inherit; cursor:pointer;
+    transition:background .12s, border-color .12s, transform .04s; }
+  .btn:hover{ background:var(--surface-3); }
+  .btn:active{ transform:translateY(1px); }
+  .btn:disabled{ opacity:.45; cursor:not-allowed; }
+  .btn-primary{ background:var(--accent); border-color:transparent; color:var(--accent-contrast); box-shadow:0 4px 14px var(--accent-soft); }
+  .btn-primary:hover{ background:var(--accent-strong); }
+  .btn-block{ display:flex; width:100%; }
+  .btn-row{ display:flex; gap:8px; }
+  .btn-row .btn{ flex:1; }
+  .file-list{ display:flex; flex-direction:column; gap:8px; }
+  #wasmWrap{ display:block; }
+  #wasmWrap.hidden{ display:none; }
+  input[type=file]{ display:none; }
+  .select, .input{ width:100%; background:var(--surface-2); color:var(--text);
+    border:1px solid var(--border); border-radius:10px; padding:9px 11px; font-size:13.5px; font-family:inherit; }
+  .select{ cursor:pointer; }
+  .select:disabled{ opacity:.55; cursor:not-allowed; }
+  .input{ font-family:ui-monospace, monospace; }
+  .field{ margin-top:12px; }
+  .field>label{ display:block; font-size:12px; color:var(--text-dim); margin-bottom:5px; }
+  #clockVal{ display:block; margin-top:6px; }
+
+  .status{ font-size:12px; color:var(--text-dim); }
+  .status.ok{ color:var(--ok); }
+  .status.err{ color:var(--err); }
+  #status{ background:var(--surface); border:1px solid var(--border); border-radius:12px;
+    padding:11px 13px; box-shadow:var(--shadow-sm); line-height:1.45; }
+
+  /* ===== board ===== */
+  .board-wrap{ width:100%; display:flex; justify-content:center; }
+  #board{ display:block; width:100%; max-width:920px; height:auto; aspect-ratio:920/640;
+    background:var(--board); border:1px solid var(--board-border); border-radius:18px; box-shadow:var(--shadow); }
+
+  /* ===== debugger ===== */
+  .dbgToggle{ align-self:center; background:var(--surface); color:var(--text-dim);
+    border:1px solid var(--border); border-radius:11px; padding:8px 16px; font-size:13px; font-weight:600;
+    font-family:inherit; cursor:pointer; box-shadow:var(--shadow-sm); transition:background .12s,color .12s; }
+  .dbgToggle:hover{ background:var(--surface-2); color:var(--text); }
+  .dbgToggle:disabled{ opacity:.45; cursor:not-allowed; }
+  .dbgPanel{ width:100%; max-width:920px; box-sizing:border-box; background:var(--surface);
+    border:1px solid var(--border); border-radius:16px; padding:14px 16px; box-shadow:var(--shadow-sm);
+    font-family:ui-monospace, monospace; font-size:12px; color:var(--text-dim); }
+  .dbgPanel.hidden{ display:none; }
+  .dbgHeader{ display:flex; flex-wrap:wrap; gap:8px 16px; align-items:center; }
+  .dbgHeader b{ color:var(--text); font-weight:700; }
+  .dbgFlags{ display:inline-flex; gap:4px; }
+  .dbgFlags span{ padding:1px 6px; border-radius:5px; background:var(--surface-2); color:var(--text-faint); }
+  .dbgFlags span.on{ background:var(--accent-soft); color:var(--accent); }
+  #stepBtn, #step10, #step100{ background:var(--surface-2); color:var(--text); border:1px solid var(--border);
+    border-radius:9px; padding:5px 12px; font-size:12px; font-family:inherit; cursor:pointer; transition:background .12s; }
+  #stepBtn:hover, #step10:hover, #step100:hover{ background:var(--surface-3); }
+  #stepBtn:disabled, #step10:disabled, #step100:disabled{ opacity:.45; cursor:not-allowed; }
+  .dbgTabs{ display:flex; gap:5px; margin:12px 0 8px; }
+  .dbgTab{ background:transparent; color:var(--text-dim); border:1px solid transparent; border-radius:9px;
+    padding:6px 13px; font-size:12px; font-weight:600; font-family:inherit; cursor:pointer; transition:background .12s,color .12s; }
+  .dbgTab:hover{ background:var(--surface-2); color:var(--text); }
+  .dbgTab.active{ background:var(--accent-soft); color:var(--accent); }
+  .dbgView.hidden{ display:none; }
+  .dbgProg{ max-height:240px; overflow-y:auto; border:1px solid var(--code-border); border-radius:10px; background:var(--code-bg); }
+  .progRow{ display:flex; gap:12px; padding:2px 10px; cursor:pointer; }
+  .progRow:hover{ background:var(--code-row-hover); }
+  .progRow.pc{ background:var(--pc-row); }
+  .progRow .bp{ width:9px; height:9px; border-radius:50%; border:1px solid var(--border); flex:0 0 auto; align-self:center; }
+  .progRow .bp.on{ background:var(--err); border-color:var(--err); }
+  .progRow .pa{ color:var(--code-addr); width:46px; }
+  .progRow .pw{ color:var(--code-word); width:56px; }
+  .progRow .pm{ color:var(--code-text); }
+  .dataBankBar{ color:var(--text-faint); font-size:11px; margin-bottom:6px; display:flex; gap:6px; align-items:center; }
+  .bankBtn{ background:var(--surface-2); color:var(--text-dim); border:1px solid var(--border); border-radius:7px; padding:3px 10px; font-size:11px; font-family:inherit; cursor:pointer; }
+  .bankBtn.active{ background:var(--accent-soft); color:var(--accent); border-color:transparent; }
+  .dbgData{ display:grid; grid-template-columns:auto repeat(16,1fr); gap:2px 6px; background:var(--code-bg); border:1px solid var(--code-border); border-radius:10px; padding:9px; font-size:11px; }
+  .dbgData .dlabel{ color:var(--code-addr); padding-right:4px; }
+  .dbgData .dcell{ color:var(--code-text); text-align:center; cursor:pointer; border-radius:3px; }
+  .dbgData .dcell.sfr{ color:var(--purple); }
+  .dbgData .dcell:hover{ outline:1px solid var(--accent); }
+  .dbgSFR{ background:var(--code-bg); border:1px solid var(--code-border); border-radius:10px; padding:7px 9px; }
+  .sfrRow{ display:flex; gap:10px; align-items:center; padding:1px 0; }
+  .sfrRow .sname{ color:var(--text-dim); width:64px; }
+  .sfrRow .sval{ color:var(--code-text); width:46px; cursor:pointer; border-radius:3px; }
+  .sfrRow .sval:hover{ outline:1px solid var(--accent); }
+  .sfrRow .sbin{ color:var(--code-addr); width:72px; }
+  .sfrRow .sbits{ display:inline-flex; gap:3px; flex-wrap:wrap; }
+  .sfrRow .sbits span{ padding:0 4px; border-radius:3px; background:var(--surface-2); color:var(--text-faint); font-size:10px; }
+  .sfrRow .sbits span.on{ background:var(--accent-soft); color:var(--accent); }
+  .watchBar{ display:flex; gap:6px; margin-bottom:6px; }
+  .watchBar input{ flex:1 1 auto; min-width:0; background:var(--code-bg); color:var(--code-text); border:1px solid var(--border); border-radius:8px; padding:6px 9px; font-family:ui-monospace,monospace; font-size:12px; }
+  .watchBar button{ background:var(--surface-2); color:var(--text); border:1px solid var(--border); border-radius:8px; padding:6px 13px; font-size:12px; font-family:inherit; cursor:pointer; }
+  .watchBar button:hover{ background:var(--surface-3); }
+  .dbgWatch{ background:var(--code-bg); border:1px solid var(--code-border); border-radius:10px; padding:7px 9px; min-height:28px; }
+  .watchEmpty{ color:var(--text-faint); font-size:11px; line-height:1.4; }
+  .watchRow{ display:flex; gap:10px; align-items:center; padding:1px 0; }
+  .watchRow .wname{ color:var(--accent); width:72px; }
+  .watchRow .waddr{ color:var(--code-addr); width:46px; }
+  .watchRow .wval{ color:var(--code-text); width:46px; }
+  .watchRow .wbin{ color:var(--code-addr); width:72px; }
+  .watchRow .wdel{ margin-left:auto; background:none; border:none; color:var(--text-faint); cursor:pointer; font-size:15px; line-height:1; }
+  .watchRow .wdel:hover{ color:var(--err); }
+  .cellEdit{ width:34px; background:var(--surface); color:var(--accent); border:1px solid var(--accent); border-radius:4px; font-family:ui-monospace,monospace; font-size:11px; padding:0 2px; }
+
+  /* ===== responsive ===== */
+  @media (max-width: 920px){
+    .layout{ flex-direction:column; padding:14px; gap:14px; }
+    .rail{ width:100%; flex:none; position:static; flex-direction:row; flex-wrap:wrap; }
+    .rail .card{ flex:1 1 240px; }
+    .rail>#status{ flex:1 1 100%; }
+    .stage{ width:100%; }
+  }
 </style>
+<script>
+  /* Apply the saved / preferred theme before first paint (no flash of the wrong theme). */
+  (function(){
+    try{
+      var t = localStorage.getItem("np_theme");
+      if(!t) t = (window.matchMedia && matchMedia("(prefers-color-scheme: light)").matches) ? "light" : "dark";
+      document.documentElement.setAttribute("data-theme", t);
+    }catch(e){ document.documentElement.setAttribute("data-theme","dark"); }
+  })();
+</script>
 </head>
 <body>
-  <h1>SimuPIC</h1>
-  <div class="sub">Simulador del PIC16F628A en el navegador — núcleo Rust ciclo a ciclo (WASM)</div>
-
-  <div class="panel">
-    <span id="wasmWrap"><label class="file">Cargar núcleo (.wasm)<input id="wasmFile" type="file" accept=".wasm" /></label></span>
-    <label class="file">Cargar programa (.hex)<input id="hexFile" type="file" accept=".hex" /></label>
-    <label class="file">Cargar diagrama (.json)<input id="diagFile" type="file" accept=".json,application/json" /></label>
-    <label class="speed">Placa
-      <select id="labSelect" disabled style="background:#21262d;color:#e6edf3;border:1px solid #30363d;border-radius:7px;padding:7px 10px;font-size:13px"></select>
-    </label>
-    <button id="runBtn" disabled>Ejecutar</button>
-    <button id="resetBtn" disabled>Reiniciar</button>
-    <div class="speed">Reloj
-      <input id="clock" type="text" value="4 MHz" style="width:88px; background:#21262d; color:#e6edf3; border:1px solid #30363d; border-radius:6px; padding:6px 8px; font-family:ui-monospace,monospace" />
-      <span id="clockVal" class="status ok">4,000,000 Hz</span>
+  <header class="appbar">
+    <div class="brand">
+      <svg class="logo" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+        <rect x="5.5" y="5.5" width="13" height="13" rx="3" fill="none" stroke="currentColor" stroke-width="1.6"/>
+        <circle cx="12" cy="12" r="2.3" fill="currentColor"/>
+        <path d="M9 5.5V2.6M12 5.5V2.6M15 5.5V2.6M9 21.4v-2.9M12 21.4v-2.9M15 21.4v-2.9M5.5 9H2.6M5.5 12H2.6M5.5 15H2.6M21.4 9h-2.9M21.4 12h-2.9M21.4 15h-2.9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+      <span class="brand-name">SimuPIC</span>
+      <span class="brand-tag">PIC16F628A</span>
     </div>
-  </div>
+    <div class="appbar-spacer"></div>
+    <button id="themeBtn" class="iconbtn" title="Cambiar tema (claro / oscuro)" aria-label="Cambiar tema">
+      <svg class="icon-sun" viewBox="0 0 24 24" width="19" height="19" aria-hidden="true"><circle cx="12" cy="12" r="4" fill="currentColor"/><path d="M12 2.4v2.5M12 19.1v2.5M2.4 12h2.5M19.1 12h2.5M5.2 5.2l1.8 1.8M17 17l1.8 1.8M18.8 5.2L17 7M7 17l-1.8 1.8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+      <svg class="icon-moon" viewBox="0 0 24 24" width="19" height="19" aria-hidden="true"><path d="M20.5 14.8A8.2 8.2 0 1 1 9.2 3.5a6.4 6.4 0 0 0 11.3 11.3z" fill="currentColor"/></svg>
+    </button>
+  </header>
 
-  <canvas id="board" width="920" height="640"></canvas>
-  <div id="status" class="status">Cargando núcleo…</div>
-
-  <button id="dbgToggle" class="dbgToggle" disabled>▸ Depurador</button>
-  <div id="dbgPanel" class="dbgPanel hidden">
-    <div class="dbgHeader">
-      <span>Ciclos <b id="dbgCycles">0</b></span>
-      <span>PC <b id="dbgPC">0x000</b></span>
-      <span>W <b id="dbgW">0x00</b></span>
-      <span>STATUS <b id="dbgStatus">0x18</b></span>
-      <span class="dbgFlags" id="dbgFlags"></span>
-      <button id="stepBtn" disabled>Paso ▸</button>
-      <button id="step10" disabled>×10</button>
-      <button id="step100" disabled>×100</button>
-    </div>
-    <div class="dbgTabs">
-      <button class="dbgTab active" data-view="prog">Programa</button>
-      <button class="dbgTab" data-view="data">Datos</button>
-      <button class="dbgTab" data-view="sfr">SFR</button>
-      <button class="dbgTab" data-view="watch">Vigilar</button>
-    </div>
-    <div id="view-prog" class="dbgView"><div id="dbgProg" class="dbgProg"></div></div>
-    <div id="view-data" class="dbgView hidden">
-      <div class="dataBankBar">Banco
-        <button id="bank0" class="bankBtn active">0</button><button id="bank1" class="bankBtn">1</button>
+  <div class="layout">
+    <aside class="rail">
+      <div class="card">
+        <div class="card-title">Placa</div>
+        <select id="labSelect" class="select" disabled></select>
       </div>
-      <div id="dbgData" class="dbgData"></div>
-    </div>
-    <div id="view-sfr" class="dbgView hidden"><div id="dbgSFR" class="dbgSFR"></div></div>
-    <div id="view-watch" class="dbgView hidden">
-      <div class="watchBar">
-        <input id="watchInput" type="text" placeholder="0x20 o PORTB" autocomplete="off" />
-        <button id="watchAdd">Agregar</button>
+
+      <div class="card">
+        <div class="card-title">Simulación</div>
+        <div class="btn-row">
+          <button id="runBtn" class="btn btn-primary" disabled>Ejecutar</button>
+          <button id="resetBtn" class="btn" disabled>Reiniciar</button>
+        </div>
+        <div class="field">
+          <label for="clock">Reloj</label>
+          <input id="clock" class="input" type="text" value="4 MHz" />
+          <span id="clockVal" class="status ok">4,000,000 Hz</span>
+        </div>
       </div>
-      <div id="dbgWatch" class="dbgWatch"></div>
-    </div>
+
+      <div class="card">
+        <div class="card-title">Archivos</div>
+        <div class="file-list">
+          <span id="wasmWrap"><label class="file btn btn-block">Cargar núcleo (.wasm)<input id="wasmFile" type="file" accept=".wasm" /></label></span>
+          <label class="file btn btn-block">Cargar programa (.hex)<input id="hexFile" type="file" accept=".hex" /></label>
+          <label class="file btn btn-block">Cargar diagrama (.json)<input id="diagFile" type="file" accept=".json,application/json" /></label>
+        </div>
+      </div>
+
+      <div id="status" class="status">Cargando núcleo…</div>
+    </aside>
+
+    <main class="stage">
+      <div class="board-wrap">
+        <canvas id="board" width="920" height="640"></canvas>
+      </div>
+
+      <button id="dbgToggle" class="dbgToggle" disabled>▸ Depurador</button>
+      <div id="dbgPanel" class="dbgPanel hidden">
+        <div class="dbgHeader">
+          <span>Ciclos <b id="dbgCycles">0</b></span>
+          <span>PC <b id="dbgPC">0x000</b></span>
+          <span>W <b id="dbgW">0x00</b></span>
+          <span>STATUS <b id="dbgStatus">0x18</b></span>
+          <span class="dbgFlags" id="dbgFlags"></span>
+          <button id="stepBtn" disabled>Paso ▸</button>
+          <button id="step10" disabled>×10</button>
+          <button id="step100" disabled>×100</button>
+        </div>
+        <div class="dbgTabs">
+          <button class="dbgTab active" data-view="prog">Programa</button>
+          <button class="dbgTab" data-view="data">Datos</button>
+          <button class="dbgTab" data-view="sfr">SFR</button>
+          <button class="dbgTab" data-view="watch">Vigilar</button>
+        </div>
+        <div id="view-prog" class="dbgView"><div id="dbgProg" class="dbgProg"></div></div>
+        <div id="view-data" class="dbgView hidden">
+          <div class="dataBankBar">Banco
+            <button id="bank0" class="bankBtn active">0</button><button id="bank1" class="bankBtn">1</button>
+          </div>
+          <div id="dbgData" class="dbgData"></div>
+        </div>
+        <div id="view-sfr" class="dbgView hidden"><div id="dbgSFR" class="dbgSFR"></div></div>
+        <div id="view-watch" class="dbgView hidden">
+          <div class="watchBar">
+            <input id="watchInput" type="text" placeholder="0x20 o PORTB" autocomplete="off" />
+            <button id="watchAdd">Agregar</button>
+          </div>
+          <div id="dbgWatch" class="dbgWatch"></div>
+        </div>
+      </div>
+    </main>
   </div>
 
 <!-- Optional embedded core: `core-wasm.js` defines window.NP_WASM_BASE64 so the
@@ -558,6 +694,20 @@ applyClock();
 function canvasPos(e){ const r=canvas.getBoundingClientRect(); return [(e.clientX-r.left)*canvas.width/r.width,(e.clientY-r.top)*canvas.height/r.height]; }
 canvas.addEventListener("mousedown",(e)=>{ const [mx,my]=canvasPos(e); for(const c of components) if(c.hit&&c.hit(mx,my)) c.press(true); });
 window.addEventListener("mouseup", ()=>{ for(const c of components) if(c.press) c.press(false); });
+
+// ===== theme toggle (dark / light, persisted) =====
+(function(){
+  const root=document.documentElement, btn=document.getElementById("themeBtn");
+  const meta=document.querySelector('meta[name="theme-color"]');
+  function paintMeta(){ if(meta) meta.setAttribute("content", getComputedStyle(root).getPropertyValue("--bg").trim() || "#14161c"); }
+  paintMeta();
+  if(btn) btn.addEventListener("click", ()=>{
+    const t = root.getAttribute("data-theme")==="dark" ? "light" : "dark";
+    root.setAttribute("data-theme", t);
+    try{ localStorage.setItem("np_theme", t); }catch(e){}
+    paintMeta();
+  });
+})();
 
 // ===== embedded-core auto-load =====
 window.addEventListener("DOMContentLoaded", async ()=>{

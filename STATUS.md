@@ -7,6 +7,17 @@ classroom (codename *New Proteus*). **Shipped and live:**
 
 ## Session log (newest first) — update this at the end of each session
 
+- **2026-06-18 (UI revamp)** — Reworked the runtime UI (`runtime/index.html`, CSS + layout
+  only — **no core/wasm change**): **dark + light themes** via CSS variables with a **toggle**
+  in the app bar (persisted in `localStorage` `np_theme`, no-flash inline head script,
+  defaults to `prefers-color-scheme`); a **restructured layout** — top app bar (brand + theme
+  switch) · left side-rail with Placa / Simulación / Archivos cards + status · centered board ·
+  docked Depurador panel; and a friendlier "classroom" style (rounded cards, softer surfaces,
+  indigo accent, larger controls). All element IDs / JS hooks preserved. Verified in-browser in
+  **both themes**: board + 2-digit multiplex render, controls, theme persistence across reload,
+  and the full debugger (Programa / Datos / SFR / Vigilar, PC highlight, breakpoints, editing)
+  all intact; responsive `@media (max-width:920px)` rule confirmed in the CSSOM. Pure runtime
+  change → **no wasm rebuild / embed / verify-core needed**. *Uncommitted.*
 - **2026-06-18 (v2)** — Debugger v2: **breakpoints** (click a program row; the run stops
   there, resume steps past it — core `np_set_break`/`np_clear_break`/`np_break_hit`, the
   scheduler stops at a marked PC), **Paso ×10/×100**, and **live memory editing** (click a
