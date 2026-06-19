@@ -91,6 +91,9 @@
   .field{ margin-top:12px; }
   .field>label{ display:block; font-size:12px; color:var(--text-dim); margin-bottom:5px; }
   #clockVal{ display:block; margin-top:6px; }
+  .range{ width:100%; margin-top:9px; accent-color:var(--accent); cursor:pointer; }
+  .readout{ margin-top:11px; font:12px/1 ui-monospace, monospace; color:var(--text-dim); letter-spacing:.02em; }
+  .stage.drop .board-wrap{ outline:2px dashed var(--accent); outline-offset:6px; border-radius:18px; }
 
   .status{ font-size:12px; color:var(--text-dim); }
   .status.ok{ color:var(--ok); }
@@ -223,8 +226,10 @@
         <div class="field">
           <label for="clock">Reloj</label>
           <input id="clock" class="input" type="text" value="4 MHz" />
+          <input id="clockRange" class="range" type="range" min="0" max="0" value="0" aria-label="Velocidad del reloj" />
           <span id="clockVal" class="status ok">4,000,000 Hz</span>
         </div>
+        <div id="simReadout" class="readout">00:00:000</div>
       </div>
 
       <div class="card">
@@ -385,16 +390,25 @@ function build(diagram){
       if(c.label) wiring.labels.push({x:pos.x, y:pos.y-23, text:c.label, kind:"cap"});
       return {on:0,n:0,b:0,reset(){this.on=0;this.n=0;},
         sample(pa,pb){ const lit=c.activeLow?pinVal(c.pin,pa,pb)===0:pinVal(c.pin,pa,pb)===1; if(lit)this.on++; this.n++; },
-        integrate(a){ const d=this.n?this.on/this.n:0; this.b+=(d-this.b)*a; },
+        integrate(dt){ const d=this.n?this.on/this.n:0; this.b+=(d-this.b)*(1-Math.exp(-dt/45)); },
         drawBody(ctx){ drawLed(ctx,pos.x,pos.y,this.b); } };
     }
     if(c.type==="sevenseg"){
       const pos={x: startX + (si++)*(SW+GAP), y:DISP_TOP};
       displays.push({pos, W:SW, H:SH, pins:c.pins, common:c.common});
-      return {seg:[0,0,0,0,0,0,0],n:0,b:[0,0,0,0,0,0,0],reset(){this.seg=[0,0,0,0,0,0,0];this.n=0;},
-        sample(pa,pb){ this.n++; const sel=c.common?(c.commonActiveLow?pinVal(c.common,pa,pb)===0:pinVal(c.common,pa,pb)===1):true;
-          if(sel) for(let i=0;i<7;i++) if(pinVal(c.pins[i],pa,pb)===1) this.seg[i]++; },
-        integrate(a){ for(let i=0;i<7;i++){ const d=this.n?this.seg[i]/this.n:0; this.b[i]+=(d-this.b[i])*a; } },
+      // Honest persistence of vision for multiplexed displays. Each frame the segment
+      // brightness decays toward 0 with a ~45 ms time constant (the eye's persistence)
+      // and is pulled to full whenever the segment is actually lit (its digit selected
+      // AND the segment driven). So a fast mux fuses to a solid, bright display, while a
+      // mux slower than flicker fusion visibly flickers — exactly like real hardware,
+      // and unlike Proteus which hides a slow refresh. selN = sub-steps this digit was
+      // selected this frame; the decay is time-based, so it's frame-rate-agnostic.
+      return {seg:[0,0,0,0,0,0,0],selN:0,b:[0,0,0,0,0,0,0],
+        reset(){this.seg=[0,0,0,0,0,0,0];this.selN=0;},
+        sample(pa,pb){ const sel=c.common?(c.commonActiveLow?pinVal(c.common,pa,pb)===0:pinVal(c.common,pa,pb)===1):true;
+          if(sel){ this.selN++; for(let i=0;i<7;i++) if(pinVal(c.pins[i],pa,pb)===1) this.seg[i]++; } },
+        integrate(dt){ const k=Math.exp(-dt/45);
+          for(let i=0;i<7;i++){ const lit=(this.selN>0 && this.seg[i]/this.selN>=0.5)?1:0; this.b[i]=Math.max(this.b[i]*k, lit); } },
         drawBody(ctx){ drawSeven(ctx,pos.x,pos.y,this.b,SW,SH); } };
     }
     if(c.type==="button"){
@@ -553,9 +567,14 @@ const breakSet=new Set();
 const SUBSTEPS=64;
 let clockHz=4000000;
 let cycleBudget=0; // carries fractional cycles so low clocks run < 1 cycle/frame
+let runRealMs=0, lastTick=performance.now(); // wall-clock stopwatch: real time the sim has run, independent of the PIC clock
 function frame(){
+  const tNow=performance.now();
+  const dtMs=Math.min(tNow-lastTick, 100); // real ms since last frame (capped so a background-tab gap can't burst)
+  lastTick=tNow;
   if(running&&X){
-    cycleBudget += clockHz/4/60;          // instruction cycles due this frame (may be < 1)
+    runRealMs += dtMs;                     // wall-clock stopwatch (real time the sim has run)
+    cycleBudget += (clockHz/4)*(dtMs/1000);// cycles for the REAL time elapsed — independent of the display refresh rate
     let want=Math.floor(cycleBudget); cycleBudget-=want;
     if(want>2000000) want=2000000;        // cap so an absurd clock can't freeze the tab
     if(want>0){
@@ -566,7 +585,7 @@ function frame(){
       if(!brk && ran<want){ X.np_run_cycles(want-ran); if(X.np_break_hit()) brk=true; }
       // Persist brightness across frames (~80 ms) so a slow multiplex spanning
       // several frames still shows every digit, like the eye / real hardware.
-      for(const c of components) if(c.integrate) c.integrate(0.2);
+      for(const c of components) if(c.integrate) c.integrate(dtMs);
       if(brk){ running=false; document.getElementById("runBtn").textContent="Ejecutar"; if(dbgOpen) refreshDebug(); }
     }
   }
@@ -574,6 +593,7 @@ function frame(){
   drawChip(ctx);
   for(const c of components) c.drawBody(ctx);
   drawWiring(ctx);
+  updateReadout();
   if(dbgOpen && running && (++dbgTick % 6 === 0)) refreshDebug();
   requestAnimationFrame(frame);
 }
@@ -587,7 +607,7 @@ function setDiagram(d){ components=build(d); }
 function afterHex(ok,name){ if(!ok){ setStatus("No se pudo leer "+name,"err"); return; }
   X.np_reset(); for(const c of components) if(c.idle) c.idle();
   enable(["runBtn","resetBtn"],true);
-  running=true; document.getElementById("runBtn").textContent="Pausar";
+  running=true; runRealMs=0; document.getElementById("runBtn").textContent="Pausar";
   setStatus("Cargado "+name+" ✓ — ejecutando.","ok"); breakSet.clear(); if(X) X.np_clear_breaks(); if(dbgOpen){ buildProgView(); refreshDebug(); } }
 
 document.getElementById("wasmFile").addEventListener("change", async (e)=>{
@@ -638,7 +658,7 @@ document.getElementById("labSelect").addEventListener("change", (e)=>{
   }
 });
 document.getElementById("runBtn").addEventListener("click", ()=>{ running=!running; if(running && X && breakSet.has(X.np_pc())) X.np_step(); document.getElementById("runBtn").textContent=running?"Pausar":"Ejecutar"; });
-document.getElementById("resetBtn").addEventListener("click", ()=>{ X.np_reset(); for(const c of components) if(c.idle) c.idle(); if(dbgOpen) refreshDebug(); });
+document.getElementById("resetBtn").addEventListener("click", ()=>{ X.np_reset(); runRealMs=0; for(const c of components) if(c.idle) c.idle(); if(dbgOpen) refreshDebug(); });
 
 // ===== Depurador (debugger panel) =====
 const STATUS_BITS = [["C",0],["DC",1],["Z",2],["RP0",5]];
@@ -787,12 +807,42 @@ document.getElementById("dbgSFR").addEventListener("click", (e)=>{
   const val=e.target.closest(".sval"); if(!val||!X) return;
   const addr=+val.dataset.addr; editCell(val, addr<0?X.np_w():X.np_read_data(addr), (v)=> addr<0?X.np_set_w(v):X.np_write_data(addr,v));
 });
+// ===== clock: text input + slider shortcut (1-2-5 steps, 1 Hz … 8 MHz) =====
+const SPEEDS=[1,2,5,10,20,50,100,200,500,1e3,2e3,5e3,1e4,2e4,5e4,1e5,2e5,5e5,1e6,2e6,4e6,8e6];
+const clockRange=document.getElementById("clockRange"); clockRange.max=SPEEDS.length-1;
+function fmtHz(v){ return v>=1e6 ? (v/1e6)+" MHz" : v>=1e3 ? (v/1e3)+" kHz" : v+" Hz"; }
+function nearestSpeedIdx(hz){ let bi=0,bd=Infinity; for(let i=0;i<SPEEDS.length;i++){ const d=Math.abs(Math.log(SPEEDS[i])-Math.log(hz)); if(d<bd){bd=d;bi=i;} } return bi; }
 function parseClock(s){ s=(s||"").trim().toLowerCase().replace(/hz$/,"").trim(); const m=/^([0-9]*\.?[0-9]+)\s*([kmg]?)$/.exec(s); if(!m)return null; const mult={k:1e3,m:1e6,g:1e9}[m[2]]||1; return Math.round(parseFloat(m[1])*mult); }
-function applyClock(){ const v=parseClock(document.getElementById("clock").value); const el=document.getElementById("clockVal");
-  if(v&&v>0){ clockHz=v; if(X)X.np_set_clock_hz(v); el.textContent=v.toLocaleString("es-AR")+" Hz"; el.className="status ok"; }
-  else { el.textContent="inválido"; el.className="status err"; } }
+function setClockHz(hz){ clockHz=hz; if(X) X.np_set_clock_hz(hz); const el=document.getElementById("clockVal"); el.textContent=hz.toLocaleString("es-AR")+" Hz"; el.className="status ok"; }
+function applyClock(){ const v=parseClock(document.getElementById("clock").value);
+  if(v&&v>0){ setClockHz(v); clockRange.value=nearestSpeedIdx(v); }
+  else { const el=document.getElementById("clockVal"); el.textContent="inválido"; el.className="status err"; } }
 document.getElementById("clock").addEventListener("input", applyClock);
+clockRange.addEventListener("input", ()=>{ const hz=SPEEDS[+clockRange.value]; document.getElementById("clock").value=fmtHz(hz); setClockHz(hz); });
 applyClock();
+
+// ===== always-visible elapsed-time (mm:ss:ms) + cycle counter =====
+function fmtTime(sec){ if(!isFinite(sec)||sec<0) sec=0; const ms=Math.floor(sec*1000);
+  return String(Math.floor(ms/60000)).padStart(2,"0")+":"+String(Math.floor(ms/1000)%60).padStart(2,"0")+":"+String(ms%1000).padStart(3,"0"); }
+let simReadoutEl=null;
+function updateReadout(){ (simReadoutEl||(simReadoutEl=document.getElementById("simReadout"))).textContent=fmtTime(runRealMs/1000); }
+
+// ===== drag a .hex onto the board to load it =====
+const stageEl=document.querySelector(".stage");
+["dragenter","dragover"].forEach((ev)=>stageEl.addEventListener(ev,(e)=>{ e.preventDefault(); stageEl.classList.add("drop"); }));
+stageEl.addEventListener("dragleave",(e)=>{ if(!stageEl.contains(e.relatedTarget)) stageEl.classList.remove("drop"); });
+stageEl.addEventListener("drop", async (e)=>{ e.preventDefault(); stageEl.classList.remove("drop");
+  const f=e.dataTransfer&&e.dataTransfer.files[0]; if(!f) return;
+  if(!X){ setStatus("Cargá el núcleo primero.","err"); return; }
+  if(!/\.hex$/i.test(f.name)){ setStatus("Arrastrá un archivo .hex.","err"); return; }
+  afterHex(loadHex(await f.text()), f.name); });
+
+// ===== keyboard: space toggles Ejecutar / Pausar =====
+window.addEventListener("keydown",(e)=>{
+  if(e.code==="Space" && !/^(INPUT|SELECT|TEXTAREA|BUTTON)$/.test(e.target.tagName)){
+    const b=document.getElementById("runBtn"); if(!b.disabled){ e.preventDefault(); b.click(); }
+  }
+});
 
 function canvasPos(e){ const r=canvas.getBoundingClientRect(); return [(e.clientX-r.left)*canvas.width/r.width,(e.clientY-r.top)*canvas.height/r.height]; }
 canvas.addEventListener("mousedown",(e)=>{ const [mx,my]=canvasPos(e); for(const c of components) if(c.hit&&c.hit(mx,my)) c.press(true); });

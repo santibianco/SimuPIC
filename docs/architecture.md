@@ -134,6 +134,46 @@ segment, reset at the start of each frame and integrated as pin states change du
 (e.g. every ~1 ms of simulated time) and OR the results. Less accurate — no brightness
 gradation — but easy. Prefer the on-time model; it's not much more work and it's honest.
 
+### 4.1 What the runtime actually does, and the flicker-threshold decision (2026-06)
+
+The runtime's brightness model evolved past the pure on-time/duty model above. A 7-seg
+segment's drawn brightness now **decays toward 0 with a ~45 ms time constant (the eye's
+persistence) and is pulled to full whenever the segment is actually lit** (its digit
+selected *and* the segment driven). Net effect:
+
+- A mux refreshed faster than flicker fusion fuses to a **solid, bright** display (full
+  brightness, not 25% — we assume the current-boost most real multiplexed boards use).
+- A mux refreshed slower than the eye **visibly flickers**, exactly as it would on real
+  hardware. We deliberately do **not** hide a slow refresh the way Proteus does.
+
+**Decision (Santiago, 2026-06): keep the simulator realistic rather than paper over slow
+firmware.** Students should see a too-slow refresh flicker and fix it (shorten the TMR0
+period), not ship a flickery board that only looked fine in the sim — this is where SimuPIC
+is *more* useful than Proteus, not less. (An earlier "latch-and-hold" model forced every mux
+solid regardless of refresh rate; it was reverted for this reason.)
+
+**Known limitation — the flicker threshold is tied to the monitor's refresh rate.** Brightness
+is integrated once per rendered frame (`requestAnimationFrame`), so the sim effectively samples
+the display at the monitor's refresh. A digit looks solid only if the *whole* mux cycle (all
+digits once) fits inside one screen frame:
+
+- 60 Hz monitor → 16.7 ms frame → solid if the full cycle is under ~16.7 ms (4 digits ≤ ~4 ms dwell).
+- 120 Hz monitor → 8.3 ms frame → solid if under ~8.3 ms.
+
+So mux cycles in the **~8–17 ms band (~60–120 Hz per digit)** can look solid on a 60 Hz screen
+yet flicker faintly on a 120 Hz one — two students may see slightly different results for the
+same `.hex` in that narrow band. Outside it the result is consistent across machines: anything
+clearly slow (e.g. the *TP 2022* example at ~17 Hz / 60 ms cycle) flickers on every screen, and
+anything in the proper kHz range is solid on every screen. The band roughly coincides with where
+real people start disagreeing about flicker, so it's a defensible place for the threshold to sit.
+
+**If this ever causes confusion or support questions:** move the brightness integration down into
+the per-sub-step sample loop (the frame already samples PORTA/PORTB ~64×/frame). Integrate
+brightness against each sub-step's real-time slice instead of once per frame, and the flicker-
+fusion threshold becomes a fixed real-time constant (the ~45 ms `tau`), independent of monitor
+refresh — at the cost of a little more per-frame work. Where: `runtime/index.html`, the 7-seg /
+LED `integrate()` methods plus the frame sample loop.
+
 ---
 
 ## 5. The core's public interface (WASM exports)

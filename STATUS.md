@@ -7,6 +7,35 @@ classroom (codename *New Proteus*). **Shipped and live:**
 
 ## Session log (newest first) — update this at the end of each session
 
+- **2026-06-18 (persistence of vision)** — Reworked 7-seg brightness to model **honest persistence
+  of vision** (`runtime/index.html`). Each segment decays toward 0 with a ~45 ms time constant (the
+  eye's persistence) and is pulled to full while *actually lit* (its digit selected AND the segment
+  driven). So a mux faster than flicker-fusion fuses to a **solid, bright** display, while a mux
+  slower than the eye **visibly flickers** — like real hardware, and deliberately *unlike* Proteus,
+  which hides a slow refresh. Time-based → frame-rate-agnostic. **Design call (Santiago): keep the
+  sim realistic rather than paper over slow firmware** — students should see and fix a too-slow
+  refresh. The TP-Dificil example refreshes each digit only ~17 Hz → now flickers (segment ripple
+  0.51, peaks at full brightness); a kHz-range refresh shows solid. (First tried a latch-and-hold
+  that forced everything solid — reverted in favour of realism.) **The decision and its one known
+  limitation — the flicker threshold is tied to the monitor's refresh rate (~8–17 ms-cycle mux can
+  look solid at 60 Hz but flicker at 120 Hz), with the fix-if-needed — are documented in
+  `docs/architecture.md` §4.1.** *Uncommitted.*
+- **2026-06-18 (timing fix)** — Fixed the sim running **too fast on high-refresh displays**. The
+  frame loop assumed 60 fps (`cycleBudget += clockHz/4/60`), so on a 120 Hz screen it ran 2× real
+  speed (measured ratio 2.00). Now the budget is driven by **real elapsed time** (`clockHz/4 × dt`,
+  the same `dt` the stopwatch uses, capped at 100 ms), so a "4 MHz" program runs at true 4 MHz
+  wall-clock on any display (re-measured ratio 1.00; simulated time now equals the stopwatch).
+  `runtime/index.html` only. *Uncommitted.*
+- **2026-06-18 (runtime QoL)** — Four small conveniences (`runtime/index.html` only): a **clock
+  slider** (1-2-5 steps, 1 Hz–8 MHz) synced two-way with the Reloj text input (quick way to slow
+  things down to watch a multiplex cycle); an always-visible **real wall-clock stopwatch**
+  (mm:ss:ms) in the Simulación card — it counts real seconds the sim has run, **independent of the
+  PIC clock** (the slider doesn't change it; cycle count stays in the debugger), pauses with the
+  run, and resets on load / Reiniciar; **drag-and-drop a `.hex`** onto the board to load it; and **space =
+  Ejecutar/Pausar**. Verified slider, readout, drag highlight, and spacebar — the apparent "freeze"
+  during headless testing was just the backgrounded tab pausing `requestAnimationFrame` (`frame()`
+  steps cleanly, no error). *Uncommitted.* The **hardware stack view** (needs a core export + wasm
+  rebuild) is still pending.
 - **2026-06-18 (lab setup)** — Boards are now teacher-managed, not student-uploaded. Removed the
   **`.json` diagram upload** from the runtime. The dropdown now **groups by a per-board `group`
   label** the teacher chooses (defaults to "Trabajos Prácticos"; built-ins → "Ejemplos"; teacher
