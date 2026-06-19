@@ -7,6 +7,12 @@ classroom (codename *New Proteus*). **Shipped and live:**
 
 ## Session log (newest first) — update this at the end of each session
 
+- **2026-06-18 (seg pin map)** — 7-seg displays now show the explicit **segment→pin map**
+  instead of the `seg RB1–RB7` range: a shared key `a RB1 · b RB2 · … · g RB7` once below the
+  display row (when displays share segment pins — the usual multiplexed case), plus each
+  display's own **`com RAx`** badge; a per-display 2-column legend is the fallback for displays
+  with different pins. `drawSegKey` / `drawSegLegend` in `runtime/index.html`. Verified on
+  TP-Dificil (4), the mux (2), and the single-seg counter. *Uncommitted.*
 - **2026-06-18 (pin states)** — Added **live pin-state squares** on the chip pins, Proteus-style:
   red = 1, blue = 0, grey = no defined value. Read PORTA/PORTB + TRISA/TRISB each frame in
   `drawChip` (live while running, holds when paused). Rule: **outputs** always show their
