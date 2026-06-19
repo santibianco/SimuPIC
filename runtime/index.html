@@ -232,7 +232,6 @@
         <div class="file-list">
           <span id="wasmWrap"><label class="file btn btn-block">Cargar núcleo (.wasm)<input id="wasmFile" type="file" accept=".wasm" /></label></span>
           <label class="file btn btn-block">Cargar programa (.hex)<input id="hexFile" type="file" accept=".hex" /></label>
-          <label class="file btn btn-block">Cargar diagrama (.json)<input id="diagFile" type="file" accept=".json,application/json" /></label>
         </div>
       </div>
 
@@ -597,32 +596,32 @@ document.getElementById("wasmFile").addEventListener("change", async (e)=>{
   catch(err){ setStatus("Error al cargar el WASM: "+err,"err"); }
 });
 document.getElementById("hexFile").addEventListener("change", async (e)=>{ const f=e.target.files[0]; if(!f||!X) return; afterHex(loadHex(await f.text()),f.name); });
-document.getElementById("diagFile").addEventListener("change", async (e)=>{ const f=e.target.files[0]; if(!f) return;
-  try{ const d=JSON.parse(await f.text()); if(!d||!Array.isArray(d.components)) throw new Error("falta components[]");
-    setDiagram(d); if(d.clock_hz) setClock(d.clock_hz+" Hz"); for(const c of components) if(c.idle) c.idle();
-    setStatus("Diagrama cargado: "+(d.name||f.name)+" ✓ — ahora cargá un .hex.","ok");
-  }catch(err){ setStatus("Diagrama inválido: "+err,"err"); } });
+// Boards are set up by the teacher (via labs.js / the authoring tool), not loaded
+// ad-hoc by students — so there is no diagram upload here, only the "Placa" dropdown.
 function setClock(str){ document.getElementById("clock").value=str; applyClock(); }
 // ===== boards / labs (demos are built in; instructor boards come from labs.js) =====
 const BUILTIN_LABS = [
-  { name:"Ejemplo · Parpadeo (LED en RB0)",                   diagram:LED_DIAGRAM, hex:BLINK_HEX,          clock:"1 kHz" },
-  { name:"Ejemplo · Contador de 7 segmentos",                 diagram:SEG_DIAGRAM, hex:SEG_COUNTER_HEX,    clock:"4 MHz" },
-  { name:"Ejemplo · Contador multiplexado de 2 dígitos",      diagram:LAB_DIAGRAM, hex:MUX_COUNTER_HEX,    clock:"4 MHz" },
-  { name:"Ejemplo · Contador EEPROM (sobrevive al Reiniciar)",diagram:SEG_DIAGRAM, hex:EEPROM_COUNTER_HEX, clock:"4 MHz" },
+  { name:"Ejemplo · Parpadeo (LED en RB0)",                   group:"Ejemplos", diagram:LED_DIAGRAM, hex:BLINK_HEX,          clock:"1 kHz" },
+  { name:"Ejemplo · Contador de 7 segmentos",                 group:"Ejemplos", diagram:SEG_DIAGRAM, hex:SEG_COUNTER_HEX,    clock:"4 MHz" },
+  { name:"Ejemplo · Contador multiplexado de 2 dígitos",      group:"Ejemplos", diagram:LAB_DIAGRAM, hex:MUX_COUNTER_HEX,    clock:"4 MHz" },
+  { name:"Ejemplo · Contador EEPROM (sobrevive al Reiniciar)",group:"Ejemplos", diagram:SEG_DIAGRAM, hex:EEPROM_COUNTER_HEX, clock:"4 MHz" },
 ];
-// labs.js may set window.NP_LABS to authoring-tool exports ({name, components})
-// or full lab objects ({name, diagram, hex?, clock?}).
+// labs.js may set window.NP_LABS to authoring-tool exports ({name, group?, components})
+// or full lab objects ({name, group?, diagram, hex?, clock?}). `group` is the dropdown
+// heading the teacher picks; it defaults to "Trabajos Prácticos". The teacher's boards
+// come first, the built-in "Ejemplos" last.
 const USER_LABS = (Array.isArray(window.NP_LABS) ? window.NP_LABS : [])
-  .map((d)=> d && d.components && !d.diagram ? { name:d.name||"Placa sin nombre", diagram:d } : d)
+  .map((d)=> d && d.components && !d.diagram ? { name:d.name||"Placa sin nombre", group:d.group, diagram:d, hex:d.hex, clock:d.clock } : d)
   .filter((l)=> l && l.diagram);
-const LABS = BUILTIN_LABS.concat(USER_LABS);
+const LABS = USER_LABS.concat(BUILTIN_LABS);
 
 function populateLabs(){
   const sel=document.getElementById("labSelect");
-  const boards=LABS.filter((l)=>!l.hex), demos=LABS.filter((l)=>l.hex);
   let html='<option value="">— elegí una placa o ejemplo —</option>';
-  if(boards.length) html+='<optgroup label="Trabajos prácticos">'+boards.map((l)=>`<option value="${LABS.indexOf(l)}">${l.name}</option>`).join("")+'</optgroup>';
-  html+='<optgroup label="Ejemplos">'+demos.map((l)=>`<option value="${LABS.indexOf(l)}">${l.name}</option>`).join("")+'</optgroup>';
+  const order=[], byGroup={};
+  LABS.forEach((l,i)=>{ const g=l.group||"Trabajos Prácticos"; if(!byGroup[g]){ byGroup[g]=[]; order.push(g); } byGroup[g].push(i); });
+  for(const g of order)
+    html+=`<optgroup label="${g}">`+byGroup[g].map((i)=>`<option value="${i}">${LABS[i].name}</option>`).join("")+`</optgroup>`;
   sel.innerHTML=html;
 }
 document.getElementById("labSelect").addEventListener("change", (e)=>{

@@ -7,6 +7,16 @@ classroom (codename *New Proteus*). **Shipped and live:**
 
 ## Session log (newest first) — update this at the end of each session
 
+- **2026-06-18 (lab setup)** — Boards are now teacher-managed, not student-uploaded. Removed the
+  **`.json` diagram upload** from the runtime. The dropdown now **groups by a per-board `group`
+  label** the teacher chooses (defaults to "Trabajos Prácticos"; built-ins → "Ejemplos"; teacher
+  boards listed first). The **authoring tool** (`runtime/authoring.html`) gained a **board
+  library** (add / edit / remove, persisted in `localStorage`). It **auto-imports the existing
+  `labs.js`** on open (seeds the library; plus an **Import labs.js** button), and **"💾 Save
+  labs.js"** overwrites `runtime/labs.js` directly via a **localhost-only `POST /__save_labs`**
+  endpoint added to `serve.js` (`window.NP_LABS=[{name,group,components}]`), falling back to a
+  download if serve.js isn't reachable. **Restart `serve.js` once** to enable the write endpoint.
+  Verified dropdown grouping, round-trip export, and auto-import of the 2 existing boards. *Uncommitted.*
 - **2026-06-18 (seg pin map)** — 7-seg displays now show the explicit **segment→pin map**
   instead of the `seg RB1–RB7` range: a shared key `a RB1 · b RB2 · … · g RB7` once below the
   display row (when displays share segment pins — the usual multiplexed case), plus each
@@ -75,9 +85,10 @@ classroom (codename *New Proteus*). **Shipped and live:**
 - **Per-pin on-time sampling** for 7-seg persistence of vision. (step 3)
 - **Input pins**: TRIS-aware reads + `set_pin` (buttons) + RB0/INT + PORTB-change. (step 4 core)
 - **WASM**: dependency-free C-ABI (no wasm-pack) — `core/src/wasm.rs`.
-- **Browser runtime**: DIP-18 board, LEDs / 7-seg / buttons, clock control, a
-  "pick a board" lab dropdown (`labs.js`), JSON diagram loading, four demos, and a
-  **Spanish (es-AR) UI**. Verified in-browser.
+- **Browser runtime**: DIP-18 board with live pin-state squares + per-component pin
+  labels, LEDs / 7-seg / buttons, clock control, a teacher-managed "pick a board"
+  dropdown grouped by lab (`labs.js`), four demos, and a **Spanish (es-AR) UI**.
+  Verified in-browser.
 - **Debugger (Depurador)**: collapsible read-only inspector for everyone — single-step
   (`np_step`), live Ciclos/PC/W/STATUS header, program memory with disassembly + PC
   highlight, data-memory grid (bank 0/1), named SFRs with bit breakdowns, and a watch/
@@ -121,8 +132,10 @@ file wrangling can be done from the agent's mounted shell.
 ## Pending / next (all optional — the project is shipped)
 
 - Embed the live URL in the Moodle course (iframe snippet in `DEPLOY.md`).
-- More instructor lab boards: build them in `authoring.html`, paste the export
-  into `runtime/labs.js`, push → they appear in the student "pick a board" dropdown.
+- More instructor lab boards: build them in `authoring.html` (it auto-loads the current
+  `labs.js`), **Save to lab list**, then **💾 Save labs.js** to overwrite `runtime/labs.js`
+  directly (needs `serve.js` running) → commit + push and they appear in the student
+  dropdown under the **group** you set on each board.
 - Authoring niceties: drag-to-position, a "Test against a .hex" preview, honor
   `x`/`y` in the runtime (currently auto-placed around the chip).
 - (simplified) internal pull-ups (RBPU) — not modeled; add if a lab needs it.

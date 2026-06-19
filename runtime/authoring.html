@@ -31,35 +31,48 @@
   textarea { width:100%; height:120px; background:#0d1117; color:#9fb6c9; border:1px solid #30363d;
     border-radius:8px; font-family:ui-monospace,monospace; font-size:11px; padding:8px; box-sizing:border-box; }
   .muted { color:#6e7681; font-size:12px; }
+  .lib { display:flex; flex-direction:column; gap:6px; }
+  .libItem { display:flex; align-items:center; gap:8px; background:#0d1117; border:1px solid #21262d; border-radius:7px; padding:6px 9px; }
+  .libItem.editing { border-color:#2ea043; }
+  .libItem .nm { font-size:12px; color:#e6edf3; } .libItem .gp { font-size:11px; color:#6e7681; }
+  .libItem .sp { flex:1; } .libItem button { padding:3px 8px; font-size:11px; }
 </style>
 </head>
 <body>
 <header>
   <h1>SimuPIC — Diagram Authoring</h1>
-  <div class="sub">Instructor tool: build a board, assign pins, export the diagram JSON students load.</div>
+  <div class="sub">Instructor tool: build boards, assign pins, set a group, then export a ready <code>labs.js</code> for the student dropdown.</div>
 </header>
 <div class="bar">
   <span class="muted">Name</span>
-  <input id="name" type="text" value="My lab board" style="width:170px" oninput="setName(this.value)" />
+  <input id="name" type="text" value="My lab board" style="width:150px" oninput="setName(this.value)" />
+  <span class="muted">Group</span>
+  <input id="group" type="text" value="Trabajos Prácticos" style="width:150px" oninput="setGroup(this.value)" />
   <button onclick="addComp('led')">+ LED</button>
   <button onclick="addComp('button')">+ Button</button>
   <button onclick="addComp('sevenseg')">+ 7-seg</button>
+  <button onclick="newBoard()">New board</button>
   <label class="file">Import JSON<input id="imp" type="file" accept=".json,application/json" /></label>
-  <button class="primary" onclick="exportJSON()">Export JSON</button>
-  <button onclick="copyJSON()">Copy</button>
+  <button id="saveBtn" class="primary" onclick="saveToList()">Save to lab list</button>
+  <span style="flex:1"></span>
+  <button onclick="importLabsJs(true)">Import labs.js</button>
+  <button class="primary" onclick="saveLabs()">💾 Save labs.js</button>
+  <span id="msg" class="muted"></span>
 </div>
 <div class="main">
   <canvas id="board" width="700" height="600"></canvas>
   <div class="panel">
     <div id="editor"></div>
+    <div class="card"><h3>Lab list <span id="libCount" class="muted"></span></h3><div id="library"></div></div>
     <div class="card"><h3>Diagram JSON</h3><textarea id="json" readonly></textarea></div>
   </div>
 </div>
+<script src="labs.js" onerror="window.__noLabs=true"></script>
 <script>
 "use strict";
 const PINS = ["RA0","RA1","RA2","RA3","RA4","RA5","RA6","RA7","RB0","RB1","RB2","RB3","RB4","RB5","RB6","RB7"];
 const SEG = ["a","b","c","d","e","f","g"];
-let diagram = { name:"My lab board", components:[
+let diagram = { name:"My lab board", group:"Trabajos Prácticos", components:[
   { type:"led", pin:"RB0", label:"LED" },
 ] };
 
@@ -136,7 +149,7 @@ function card(c,i){
 }
 function renderEditor(){ document.getElementById("editor").innerHTML =
   diagram.components.length ? diagram.components.map(card).join("") : '<div class="card muted">No components yet — add one above.</div>'; }
-function refresh(){ renderEditor(); draw(); }
+function refresh(){ renderEditor(); draw(); renderLibrary(); }
 
 function addComp(type){
   const def = type==="led" ? {type:"led",pin:"RB0",label:"LED"}
@@ -155,12 +168,85 @@ function exportJSON(){
 }
 function copyJSON(){ navigator.clipboard && navigator.clipboard.writeText(JSON.stringify(diagram,null,2)); }
 function setName(v){ diagram.name=v; draw(); }
+function setGroup(v){ diagram.group=v; }
 document.getElementById("imp").addEventListener("change", async e=>{
   const f=e.target.files[0]; if(!f) return;
   try{ const d=JSON.parse(await f.text()); if(!Array.isArray(d.components)) throw new Error("no components[]");
-    diagram=d; if(!diagram.name) diagram.name="Imported board"; document.getElementById("name").value=diagram.name; refresh();
+    diagram=d; if(!diagram.name) diagram.name="Imported board"; if(!diagram.group) diagram.group="Trabajos Prácticos";
+    document.getElementById("name").value=diagram.name; document.getElementById("group").value=diagram.group; refresh();
   }catch(err){ alert("Bad diagram: "+err); }
 });
+
+// ---- lab list (board library, persisted in localStorage) ----
+const LIBKEY="np_authoring_library";
+let library=[]; try{ library=JSON.parse(localStorage.getItem(LIBKEY)||"[]"); }catch(e){}
+let editIndex=-1;
+function esc(s){ return String(s).replace(/[<>&]/g,(c)=>({"<":"&lt;",">":"&gt;","&":"&amp;"}[c])); }
+function saveLib(){ try{ localStorage.setItem(LIBKEY, JSON.stringify(library)); }catch(e){} }
+function saveToList(){
+  const entry={ name:diagram.name||"Placa sin nombre", group:(diagram.group||"").trim()||"Trabajos Prácticos",
+    components:JSON.parse(JSON.stringify(diagram.components)) };
+  if(editIndex>=0 && editIndex<library.length) library[editIndex]=entry;
+  else { library.push(entry); editIndex=library.length-1; }
+  saveLib(); renderLibrary();
+}
+function editBoard(i){ const b=library[i];
+  diagram={ name:b.name, group:b.group||"Trabajos Prácticos", components:JSON.parse(JSON.stringify(b.components)) };
+  document.getElementById("name").value=diagram.name; document.getElementById("group").value=diagram.group;
+  editIndex=i; refresh(); }
+function removeBoard(i){ library.splice(i,1); if(editIndex===i) editIndex=-1; else if(editIndex>i) editIndex--; saveLib(); renderLibrary(); }
+function newBoard(){ diagram={ name:"Nueva placa", group:document.getElementById("group").value||"Trabajos Prácticos", components:[] };
+  document.getElementById("name").value=diagram.name; editIndex=-1; refresh(); }
+function renderLibrary(){
+  const el=document.getElementById("library");
+  document.getElementById("libCount").textContent = library.length ? "("+library.length+")" : "";
+  document.getElementById("saveBtn").textContent = editIndex>=0 ? "Update in list" : "Save to lab list";
+  if(!library.length){ el.className=""; el.innerHTML='<div class="muted">No boards yet. Build one, set its Group, then “Save to lab list”.</div>'; return; }
+  el.className="lib";
+  el.innerHTML=library.map((b,i)=>`<div class="libItem ${i===editIndex?"editing":""}"><span class="nm">${esc(b.name)}</span><span class="gp">${esc(b.group||"")}</span><span class="sp"></span><button onclick="editBoard(${i})">edit</button><button class="del" onclick="removeBoard(${i})">remove</button></div>`).join("");
+}
+function labsContent(){
+  const body=library.map((b)=>"  "+JSON.stringify({name:b.name, group:b.group, components:b.components})).join(",\n");
+  return '// SimuPIC — lab boards for the "Placa" dropdown. Generated by the authoring tool.\n'+
+    '// Overwritten by "Save labs.js"; commit + push to publish to students.\n'+
+    "window.NP_LABS = [\n"+body+"\n];\n";
+}
+function downloadLabsFile(js){
+  const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([js],{type:"text/javascript"}));
+  a.download="labs.js"; a.click();
+}
+let msgTimer=0;
+function flash(m,bad){ const el=document.getElementById("msg"); if(!el) return; el.textContent=m;
+  el.style.color=bad?"#f0b0b4":"#5fb878"; clearTimeout(msgTimer); msgTimer=setTimeout(()=>{ el.textContent=""; },6000); }
+async function saveLabs(){
+  if(!library.length){ alert("Add at least one board to the lab list first."); return; }
+  const js=labsContent();
+  try{
+    const r=await fetch("/__save_labs",{method:"POST",headers:{"Content-Type":"text/plain"},body:js});
+    if(!r.ok) throw new Error("HTTP "+r.status);
+    flash("✓ Guardado en runtime/labs.js — commiteá y push para publicar.");
+  }catch(e){
+    downloadLabsFile(js);
+    flash("No pude escribir el archivo (¿está corriendo serve.js, reiniciado?). Descargué labs.js para reemplazarlo a mano.", true);
+  }
+}
+// ---- import existing boards from labs.js (window.NP_LABS) ----
+function labFromNP(d){
+  if(!d) return null;
+  const comps = d.components || (d.diagram && d.diagram.components);
+  if(!Array.isArray(comps)) return null;
+  return { name:d.name||"Placa sin nombre", group:d.group||"Trabajos Prácticos", components:JSON.parse(JSON.stringify(comps)) };
+}
+function importLabsJs(replace){
+  const arr = Array.isArray(window.NP_LABS) ? window.NP_LABS : [];
+  const imported = arr.map(labFromNP).filter(Boolean);
+  if(!imported.length){ flash("labs.js has no boards to import.", true); return; }
+  if(replace){ if(library.length && !confirm("Replace the lab list with the "+imported.length+" board(s) from labs.js?")) return; library=imported; }
+  else { const names=new Set(library.map((b)=>b.name)); imported.forEach((b)=>{ if(!names.has(b.name)) library.push(b); }); }
+  editIndex=-1; saveLib(); renderLibrary(); flash("Imported "+imported.length+" board(s) from labs.js.");
+}
+// seed the library from the existing labs.js the first time (empty library)
+if(!library.length) importLabsJs(false);
 
 refresh();
 </script>

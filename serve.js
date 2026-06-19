@@ -19,6 +19,18 @@ const MIME = {
 http
   .createServer((req, res) => {
     let rel = decodeURIComponent(req.url.split("?")[0]);
+    // Authoring tool can overwrite runtime/labs.js directly (localhost only).
+    if (req.method === "POST" && rel === "/__save_labs") {
+      const ra = req.socket.remoteAddress || "";
+      if (!/^(::1|127\.|::ffff:127\.)/.test(ra)) { res.statusCode = 403; return res.end("forbidden"); }
+      let body = "";
+      req.on("data", (c) => (body += c));
+      req.on("end", () => fs.writeFile(path.join(ROOT, "labs.js"), body, (err) => {
+        if (err) { res.statusCode = 500; return res.end(String(err)); }
+        res.end("ok");
+      }));
+      return;
+    }
     if (rel === "/") rel = "/index.html";
     const file = path.join(ROOT, rel);
     if (!file.startsWith(ROOT)) {
