@@ -7,6 +7,13 @@ classroom (codename *New Proteus*). **Shipped and live:**
 
 ## Session log (newest first) — update this at the end of each session
 
+- **2026-06-18 (pin states)** — Added **live pin-state squares** on the chip pins, Proteus-style:
+  red = 1, blue = 0, grey = no defined value. Read PORTA/PORTB + TRISA/TRISB each frame in
+  `drawChip` (live while running, holds when paused). Rule: **outputs** always show their
+  driven level; an **input** shows a level only if a button is wired to it (`buttonPins`, from
+  the diagram) — so it idles per the button's polarity (active-low → red, active-high → blue)
+  and flips on press; **unused inputs and VSS/VDD stay grey**. The pin name shifts just
+  outboard of the square. Verified idle + press on the mux board. *Uncommitted.*
 - **2026-06-18 (board view)** — Reworked how the board shows connections (`runtime/index.html`,
   canvas drawing only — no core change). Explored a labeled segment bus and tidy direct
   right-angle wiring, but both still read busy on the 4-display TP, so **settled on
