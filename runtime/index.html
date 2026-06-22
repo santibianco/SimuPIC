@@ -4,6 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta name="theme-color" content="#eef1f8" />
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; manifest-src 'self'; worker-src 'self'; base-uri 'none'; object-src 'none'; form-action 'none'" />
 <link rel="manifest" href="manifest.json" />
 <link rel="icon" type="image/svg+xml" href="icon.svg" />
 <title>SimuPIC — PIC16F628A simulator</title>
@@ -427,8 +428,8 @@ function build(diagram){
       buttonPins.add(c.pin);
       if(c.label) wiring.labels.push({x:pos.x+bw/2, y:pos.y+bh+13, text:c.pin, kind:"pin"});
       return {pressed:false,reset(){},sample(){},
-        idle(){ if(X) X.np_set_pin(pinIndex(c.pin), c.activeLow?1:0); },
-        press(v){ this.pressed=v; if(X) X.np_set_pin(pinIndex(c.pin), (v?!c.activeLow:c.activeLow)?1:0); },
+        idle(){ const pi=pinIndex(c.pin); if(X&&pi>=0) X.np_set_pin(pi, c.activeLow?1:0); },
+        press(v){ this.pressed=v; const pi=pinIndex(c.pin); if(X&&pi>=0) X.np_set_pin(pi, (v?!c.activeLow:c.activeLow)?1:0); },
         hit(mx,my){ return mx>=pos.x&&mx<=pos.x+bw&&my>=pos.y&&my<=pos.y+bh; },
         drawBody(ctx){ drawButton(ctx,pos.x,pos.y,this.pressed,c.label||c.pin); } };
     }
@@ -610,7 +611,8 @@ function frame(){
 requestAnimationFrame(frame);
 
 // ===== controls =====
-function setStatus(m,c){ statusEl.innerHTML=m; statusEl.className="status "+(c||""); }
+function esc(s){ return String(s).replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+function setStatus(m,c){ statusEl.textContent=m; statusEl.className="status "+(c||""); }
 function enable(ids,on){ ids.forEach((id)=>document.getElementById(id).disabled=!on); }
 function coreReady(){ populateLabs(); enable(["labSelect","dbgToggle","stepBtn","step10","step100"],true); }
 function setDiagram(d){ components=build(d); }
@@ -651,7 +653,7 @@ function populateLabs(){
   const order=[], byGroup={};
   LABS.forEach((l,i)=>{ const g=l.group||"Trabajos Prácticos"; if(!byGroup[g]){ byGroup[g]=[]; order.push(g); } byGroup[g].push(i); });
   for(const g of order)
-    html+=`<optgroup label="${g}">`+byGroup[g].map((i)=>`<option value="${i}">${LABS[i].name}</option>`).join("")+`</optgroup>`;
+    html+=`<optgroup label="${esc(g)}">`+byGroup[g].map((i)=>`<option value="${i}">${esc(LABS[i].name)}</option>`).join("")+`</optgroup>`;
   sel.innerHTML=html;
 }
 document.getElementById("labSelect").addEventListener("change", (e)=>{
@@ -751,7 +753,7 @@ function buildWatchView(){
   if(!watchList.length){ el.innerHTML='<div class="watchEmpty">Agregá una dirección (0x20) o un registro (PORTB) para seguir su valor en vivo.</div>'; return; }
   el.innerHTML=watchList.map((w,i)=>{
     const v=X?X.np_read_data(w.addr):0;
-    return `<div class="watchRow"><span class="wname">${w.label}</span><span class="waddr">0x${w.addr.toString(16).toUpperCase().padStart(2,"0")}</span><span class="wval">0x${v.toString(16).toUpperCase().padStart(2,"0")}</span><span class="wbin">${v.toString(2).padStart(8,"0")}</span><button class="wdel" data-i="${i}">×</button></div>`;
+    return `<div class="watchRow"><span class="wname">${esc(w.label)}</span><span class="waddr">0x${w.addr.toString(16).toUpperCase().padStart(2,"0")}</span><span class="wval">0x${v.toString(16).toUpperCase().padStart(2,"0")}</span><span class="wbin">${v.toString(2).padStart(8,"0")}</span><button class="wdel" data-i="${i}">×</button></div>`;
   }).join("");
   el.querySelectorAll(".wdel").forEach(b=>b.addEventListener("click",()=>{ watchList.splice(+b.dataset.i,1); saveWatch(); buildWatchView(); }));
 }

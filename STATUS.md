@@ -7,6 +7,25 @@ classroom (codename *New Proteus*). **Shipped and live:**
 
 ## Session log (newest first) — update this at the end of each session
 
+- **2026-06-22 (security hardening)** — Acted on `SECURITY-REVIEW.md`. Baseline risk was already
+  low (static, client-only, no data / secrets / accounts), so this closes the two real items + cheap
+  defense-in-depth, **with no core/wasm change — the 83 tests and the embed are untouched, no rebuild
+  needed**. `runtime/index.html`: **M1** the status line uses `textContent`, not `innerHTML`, so a
+  malicious `.hex` filename or lab name can't run script (the one cross-user vector — an instructor
+  opening a student's file); **L1/L4** dropdown names/groups + watch labels escaped via a shared
+  `esc()`; **I1** `np_set_pin` is skipped when a pin name is invalid (`pinIndex<0`) so a malformed
+  `labs.js` can't trap the sim; **L2** added a `<meta>` CSP (`default-src 'none'; connect-src 'self';
+  object-src 'none'; base-uri 'none'; …`) — `script-src` keeps `'wasm-unsafe-eval'` so the embedded
+  WASM still instantiates. `runtime/authoring.html`: **L5** the editor card escapes its label/type
+  interpolations (self-XSS on JSON import). `serve.js`: **M2** `/__save_labs` now requires a custom
+  `X-SimuPIC` header (a cross-origin page sending it would trigger a CORS preflight we never answer)
+  plus a same-origin `Sec-Fetch-Site`, and the path-prefix check is tightened — closes the dev-box
+  CSRF; `authoring.html` sends the header (**restart `serve.js` for this to take effect**). **Verified
+  live** (reloaded the open tab): core loads, sim runs (cycles advance, PORTB updates, stopwatch
+  ticks), SW registers, dropdown populates — **zero console errors / no CSP violations** — and a
+  direct test confirmed an injected `<img onerror>` through the status line renders as inert text.
+  Deliberately skipped as higher-effort / low-value: the full `script-src 'self'` refactor (would
+  break the single self-contained `index.html`) and the Moodle-iframe `sandbox`. *Uncommitted.*
 - **2026-06-18 (stack view)** — Added the debugger's **"Pila" view** — the PIC's 8-level CALL/RETURN
   hardware stack, showing depth + the return address at each level (top marked). Needs a **core
   change** (the stack isn't memory-mapped): `Cpu::stack_depth`/`stack_at` → `Core` → WASM

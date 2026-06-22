@@ -135,7 +135,7 @@ function card(c,i){
   let body="";
   if(c.type==="led"||c.type==="button"){
     body=`<div class="row"><label>Pin <select onchange="setF(${i},'pin',this.value)">${opts(c.pin)}</select></label>
-      <label>Label <input type="text" value="${c.label||""}" oninput="setF(${i},'label',this.value)" style="width:110px"></label>
+      <label>Label <input type="text" value="${esc(c.label||"")}" oninput="setF(${i},'label',this.value)" style="width:110px"></label>
       <label><input type="checkbox" ${c.activeLow?"checked":""} onchange="setF(${i},'activeLow',this.checked)"> active-low (pressed = 0)</label></div>`;
   } else if(c.type==="sevenseg"){
     const segSel=SEG.map((s,k)=>`<label>${s} <select onchange="setSeg(${i},${k},this.value)">${opts(c.pins[k])}</select></label>`).join("");
@@ -143,9 +143,9 @@ function card(c,i){
       <div class="row" style="margin-top:8px">
       <label>Common <select onchange="setF(${i},'common',this.value)">${opts(c.common)}</select></label>
       <label><input type="checkbox" ${c.commonActiveLow?"checked":""} onchange="setF(${i},'commonActiveLow',this.checked)"> common active-low</label>
-      <label>Label <input type="text" value="${c.label||""}" oninput="setF(${i},'label',this.value)" style="width:100px"></label></div>`;
+      <label>Label <input type="text" value="${esc(c.label||"")}" oninput="setF(${i},'label',this.value)" style="width:100px"></label></div>`;
   }
-  return `<div class="card"><h3>${c.type.toUpperCase()} #${i+1}<button class="del" onclick="delComp(${i})">delete</button></h3>${body}</div>`;
+  return `<div class="card"><h3>${esc(c.type.toUpperCase())} #${i+1}<button class="del" onclick="delComp(${i})">delete</button></h3>${body}</div>`;
 }
 function renderEditor(){ document.getElementById("editor").innerHTML =
   diagram.components.length ? diagram.components.map(card).join("") : '<div class="card muted">No components yet — add one above.</div>'; }
@@ -222,7 +222,7 @@ async function saveLabs(){
   if(!library.length){ alert("Add at least one board to the lab list first."); return; }
   const js=labsContent();
   try{
-    const r=await fetch("/__save_labs",{method:"POST",headers:{"Content-Type":"text/plain"},body:js});
+    const r=await fetch("/__save_labs",{method:"POST",headers:{"Content-Type":"text/plain","X-SimuPIC":"save"},body:js});
     if(!r.ok) throw new Error("HTTP "+r.status);
     flash("✓ Guardado en runtime/labs.js — commiteá y push para publicar.");
   }catch(e){

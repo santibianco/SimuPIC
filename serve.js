@@ -23,6 +23,14 @@ http
     if (req.method === "POST" && rel === "/__save_labs") {
       const ra = req.socket.remoteAddress || "";
       if (!/^(::1|127\.|::ffff:127\.)/.test(ra)) { res.statusCode = 403; return res.end("forbidden"); }
+      // CSRF guard: require our custom header (a cross-origin page that tried to send it
+      // would trigger a CORS preflight we never answer) and, when the browser supplies it,
+      // a same-origin Sec-Fetch-Site. A stray web page open in the dev's browser satisfies
+      // neither, so it can't drive this write even though we're on loopback.
+      const sfs = req.headers["sec-fetch-site"];
+      if (req.headers["x-simupic"] !== "save" || (sfs && sfs !== "same-origin")) {
+        res.statusCode = 403; return res.end("forbidden");
+      }
       let body = "";
       req.on("data", (c) => (body += c));
       req.on("end", () => fs.writeFile(path.join(ROOT, "labs.js"), body, (err) => {
@@ -33,7 +41,7 @@ http
     }
     if (rel === "/") rel = "/index.html";
     const file = path.join(ROOT, rel);
-    if (!file.startsWith(ROOT)) {
+    if (file !== ROOT && !file.startsWith(ROOT + path.sep)) {
       res.statusCode = 403;
       return res.end("forbidden");
     }
