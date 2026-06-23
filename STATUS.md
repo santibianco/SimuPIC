@@ -7,6 +7,14 @@ classroom (codename *New Proteus*). **Shipped and live:**
 
 ## Session log (newest first) — update this at the end of each session
 
+- **2026-06-23 (board: button-on-output warning)** — New 4th pin-square colour on the chip: **amber =
+  a button is wired to a pin the firmware configured as an OUTPUT and it's pressed** — surfaces a
+  common beginner mistake (forgetting the button pin needs to stay an input / wrong TRIS) instead of
+  the button silently doing nothing. `runtime/index.html` only (canvas draw): `drawChip` now checks the
+  pin's TRIS bit plus the wired button's `pressed` flag (button objects carry their `pin`). Verified
+  live: Parpadeo board, RA4 forced to output + button held → RA4 square goes amber while its PORTA
+  neighbours stay blue. No core/assembler change. *Uncommitted.*
+
 - **2026-06-23 (ASM editor — Phase 2: macros)** — The in-browser assembler now handles the full MPASM
   preprocessor the labs use: **`CBLOCK`/`ENDC`** (auto-incrementing RAM allocation → synthetic EQUs),
   **`#define`** text macros (incl. multi-token values like `PORTB,0` and instruction-valued ones like
