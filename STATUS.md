@@ -7,6 +7,43 @@ classroom (codename *New Proteus*). **Shipped and live:**
 
 ## Session log (newest first) — update this at the end of each session
 
+- **2026-06-23 (built-in ASM editor)** — Added an in-browser **"Editor de código (ASM)"** so students
+  can write MPASM and compile to a runnable `.hex` on their phone, no MPLAB needed. **New
+  `runtime/asm.js`** — a pure-JS two-pass PIC16F628A assembler: all 35 instructions, labels, `EQU`/`SET`,
+  `ORG`, `__CONFIG` (numeric + symbolic `_A & _B`), `BANKSEL` (→ bcf/bsf `STATUS,RP0` then `RP1`, 2
+  words), `GOTO $`, the `.dec`/`0x`/`h''`/`b''`/`d''`/`'c'` radixes (bare digit-led = hex, MPASM
+  default), a built-in p16f628a symbol table (SFRs + bit names + config consts, so `#include` is a
+  no-op), and `END`. Emits Intel HEX into the **existing `loadHex()` path unchanged — no core/WASM
+  change, the 83 tests and the embed are untouched, no rebuild**. CBLOCK/`#define`/MACRO are out of MVP
+  scope and **rejected with a clear Spanish "compilá en MPLAB por ahora"** message rather than
+  mis-assembled. `index.html` — a collapsible **Código** panel mirroring the Depurador (monospace
+  textarea + "Compilar y cargar"; success → `loadHex`+`afterHex`, runs like a file load; error → `línea
+  N: motivo`; source saved in `localStorage` `np_src`; a built-in counter example). `sw.js` — `asm.js`
+  added to the precache SHELL, cache **v1→v2** (offline-safe). **Validated by a new Node oracle
+  `test-asm.js`** (no Rust): assembles the real `examples/*.asm` and diffs every program word vs the
+  matching MPLAB `.hex` — **Punto A, Multiplicación and TP-turnos match byte-for-byte (126 instruction
+  words, 0 contradictions)**; the macro/CBLOCK `TP 2022` is rejected cleanly. (TP-turnos's config word
+  differs, 0x3F24 vs 0x3F30 — the `.asm`/`.hex` are slightly revision-drifted, also visible as 2 stray
+  fill words per file; the config word doesn't affect the sim.) Sample compiles (13 instr, checksums
+  OK); editor JS parses. **Range-check fix (Santiago caught it):** out-of-range operands
+  now error instead of silently masking — `movlw .20000` → "literal fuera de rango (0-255)",
+  plus goto/call (0-0x7FF) and file-register (0-0x1FF, via `fileAddr`) checks; `clrf TRISB`
+  (0x86→low 7 bits) still valid, oracle still byte-exact, confirmed live in the browser.
+  **Config-constant fix (via the real `p16f628a.inc`, which Santiago attached):** cross-checked
+  every symbol table against the authoritative inc — **SFR 35/35 and bit names 74/74 exact**, and
+  `__MAXRAM H'1FF'` confirms the file-register ceiling. But my `__CONFIG` table had **PWRTE and WDT on
+  the wrong bits** (real chip: PWRTE=bit3 `_PWRTE_ON=0x3FF7`, WDTE=bit2 `_WDT_OFF=0x3FFB`; I'd had them
+  one bit off each). Regenerated the whole CFG verbatim from the inc → **TP-turnos's config word is now
+  0x3F30, matching MPLAB exactly** (so the example `.hex` was right all along; my constants were the bug,
+  not "revision drift"). All three assembled examples now match MPLAB byte-for-byte *including config*.
+  **End-to-end confirmation against the real compiler:** ran `MPASMWIN.exe` (installed MPASM Suite) on
+  all three sources via `S:\New Proteus\mpe2e\run.bat` and diffed its `.hex` against the in-browser
+  output — **byte-for-byte identical on every program word AND the config word** (puntoa 9/9, mult 10/10,
+  turnos 107/107; zero diffs, zero extra words). MPASM's only output was `Message[302]` bank reminders.
+  (Confirms the 2 stray fill words vs the *old* example `.hex` were source drift — a fresh compile has
+  none.) `S:\New Proteus\mpe2e\` is throwaway test scratch, safe to delete.
+  *Uncommitted.*
+
 - **2026-06-22 (transport controls)** — Replaced the Ejecutar/Pausar/Reiniciar **text** buttons with
   **media-transport icon controls** in the Simulación card: a **morphing play↔pause toggle** (shows ▶
   when paused/stopped, ⏸ while running; `aria-label`/title swap to match) plus a **Stop** button. The
@@ -171,6 +208,11 @@ classroom (codename *New Proteus*). **Shipped and live:**
 - **Authoring tool** (`runtime/authoring.html`, instructor-only): visual editor —
   add LED/button/7-seg, assign pins (per-segment for 7-seg), button polarity +
   labels, live preview, export/import JSON. Round-trips to the student runtime.
+- **Built-in ASM editor** (`runtime/asm.js` + the **Código** panel): pure-JS PIC16F628A
+  assembler — write MPASM, compile to a runnable `.hex` in the browser/phone, no MPLAB. 35
+  instructions, labels, `EQU`/`ORG`/`__CONFIG`/`BANKSEL`, all radixes, built-in p16f628a symbols;
+  emits Intel HEX into the existing `loadHex()` (no core change). CBLOCK/`#define`/MACRO → clean
+  Spanish "use MPLAB" rejection. Validated byte-for-byte vs MPLAB (`node test-asm.js`).
 - **PWA**: `manifest.json` + network-first `sw.js` (offline + installable) +
   responsive canvas. Deploy via `.github/workflows/pages.yml`; see `DEPLOY.md`.
 - **Deployed & live** at <https://santibianco.github.io/SimuPIC/> (GitHub Pages via
@@ -203,6 +245,11 @@ Division of labor: the wasm build runs on the Windows host; the embed step and
 file wrangling can be done from the agent's mounted shell.
 
 ## Pending / next (all optional — the project is shipped)
+
+- ASM editor **Phase 2** (optional): `CBLOCK`/`ENDC`, `#define` text macros, and `MACRO`/`ENDM` so the
+  macro/cblock labs (e.g. the multiplexed `TP 2022`) assemble in-browser too — today they're rejected
+  with a "usá MPLAB" note. The macro processor is the long pole; everything else is additive and still
+  needs no core change. `test-asm.js` already has those two files as fixtures.
 
 - Embed the live URL in the Moodle course (iframe snippet in `DEPLOY.md`).
 - More instructor lab boards: build them in `authoring.html` (it auto-loads the current

@@ -130,6 +130,20 @@
     border:1px solid var(--border); border-radius:16px; padding:14px 16px; box-shadow:var(--shadow-sm);
     font-family:ui-monospace, monospace; font-size:12px; color:var(--text-dim); }
   .dbgPanel.hidden{ display:none; }
+  /* ===== code editor (ASM -> .hex) ===== */
+  .edPanel{ display:flex; flex-direction:column; gap:10px;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .edBar{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .edTitle{ color:var(--text-dim); font-size:12px; }
+  .edSpacer{ flex:1 1 auto; }
+  .edSrc{ width:100%; box-sizing:border-box; min-height:240px; resize:vertical;
+    background:var(--bg); color:var(--text); border:1px solid var(--border); border-radius:10px;
+    padding:10px 12px; font-family:ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size:13px; line-height:1.5; tab-size:4; -moz-tab-size:4; white-space:pre; }
+  .edSrc:focus{ outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
+  .edStatus{ font-size:12.5px; min-height:1.2em; white-space:pre-wrap; }
+  .edStatus.ok{ color:var(--ok); }
+  .edStatus.err{ color:var(--err); }
   .dbgHeader{ display:flex; flex-wrap:wrap; gap:8px 16px; align-items:center; }
   .dbgHeader b{ color:var(--text); font-weight:700; }
   .dbgFlags{ display:inline-flex; gap:4px; }
@@ -275,6 +289,19 @@
         <canvas id="board" width="920" height="640"></canvas>
       </div>
 
+      <button id="edToggle" class="dbgToggle" disabled>▸ Editor de código (ASM)</button>
+      <div id="edPanel" class="dbgPanel edPanel hidden">
+        <div class="edBar">
+          <span class="edTitle">Escribí tu programa en assembler y compilalo a .hex — corre en la placa al instante.</span>
+          <span class="edSpacer"></span>
+          <button id="edSample" class="btn">Cargar ejemplo</button>
+          <button id="edBuild" class="btn btn-primary">Compilar y cargar ▸</button>
+        </div>
+        <textarea id="edSrc" class="edSrc" spellcheck="false" autocomplete="off" autocapitalize="off" wrap="off"
+          placeholder="; Escribí tu código MPASM acá, o tocá «Cargar ejemplo»."></textarea>
+        <div id="edStatus" class="edStatus"></div>
+      </div>
+
       <button id="dbgToggle" class="dbgToggle" disabled>▸ Depurador</button>
       <div id="dbgPanel" class="dbgPanel hidden">
         <div class="dbgHeader">
@@ -318,6 +345,7 @@
      page is self-contained and you only pick a .hex. Missing file is harmless. -->
 <script src="core-wasm.js" onerror="window.__npNoEmbed=true"></script>
 <script src="labs.js" onerror="window.__npNoLabs=true"></script>
+<script src="asm.js" onerror="window.__npNoAsm=true"></script>
 <script>
 "use strict";
 
@@ -633,7 +661,7 @@ requestAnimationFrame(frame);
 function esc(s){ return String(s).replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
 function setStatus(m,c){ statusEl.textContent=m; statusEl.className="status "+(c||""); }
 function enable(ids,on){ ids.forEach((id)=>document.getElementById(id).disabled=!on); }
-function coreReady(){ populateLabs(); enable(["labSelect","dbgToggle","stepBtn","step10","step100"],true); }
+function coreReady(){ populateLabs(); enable(["labSelect","dbgToggle","edToggle","stepBtn","step10","step100"],true); }
 function setDiagram(d){ components=build(d); }
 function afterHex(ok,name){ if(!ok){ setStatus("No se pudo leer "+name,"err"); return; }
   X.np_reset(); for(const c of components) if(c.idle) c.idle();
@@ -833,6 +861,60 @@ document.getElementById("watchAdd").addEventListener("click", addWatch);
 document.getElementById("watchInput").addEventListener("keydown", (e)=>{ if(e.key==="Enter") addWatch(); });
 document.getElementById("step10").addEventListener("click", ()=>stepN(10));
 document.getElementById("step100").addEventListener("click", ()=>stepN(100));
+
+// ===== Editor de código (ASM → .hex): compila en el navegador y se carga como un .hex =====
+const ED_SAMPLE = [
+  "; Contador en PORTB (LEDs RB0..RB7).",
+  "; Tocá «Compilar y cargar» y mirá el conteo en la placa.",
+  "    __CONFIG 0x3F10",
+  "    ORG     0",
+  "    bsf     STATUS,RP0    ; banco 1",
+  "    clrf    TRISB         ; PORTB como salida",
+  "    bcf     STATUS,RP0    ; banco 0",
+  "loop",
+  "    incf    PORTB,f       ; PORTB = PORTB + 1",
+  "    call    demora",
+  "    goto    loop",
+  "demora                    ; ~65 mil ciclos de espera",
+  "    clrf    0x20",
+  "    clrf    0x21",
+  "espera",
+  "    decfsz  0x20,f",
+  "    goto    espera",
+  "    decfsz  0x21,f",
+  "    goto    espera",
+  "    return",
+  "    END",
+  ""
+].join("\n");
+let edOpen=false;
+const edSrcEl=document.getElementById("edSrc"), edStatusEl=document.getElementById("edStatus");
+try{ const saved=localStorage.getItem("np_src"); if(saved!=null) edSrcEl.value=saved; }catch(e){}
+if(!edSrcEl.value.trim()) edSrcEl.value=ED_SAMPLE;
+function edSave(){ try{ localStorage.setItem("np_src", edSrcEl.value); }catch(e){} }
+function edStatus(msg,cls){ edStatusEl.textContent=msg; edStatusEl.className="edStatus "+(cls||""); }
+edSrcEl.addEventListener("input", edSave);
+edSrcEl.addEventListener("keydown",(e)=>{ if(e.key==="Tab"){ e.preventDefault();
+  const s=edSrcEl.selectionStart, en=edSrcEl.selectionEnd;
+  edSrcEl.value=edSrcEl.value.slice(0,s)+"    "+edSrcEl.value.slice(en);
+  edSrcEl.selectionStart=edSrcEl.selectionEnd=s+4; edSave(); } });
+document.getElementById("edToggle").addEventListener("click", ()=>{
+  edOpen=!edOpen;
+  document.getElementById("edPanel").classList.toggle("hidden", !edOpen);
+  document.getElementById("edToggle").textContent=(edOpen?"▾":"▸")+" Editor de código (ASM)";
+});
+document.getElementById("edSample").addEventListener("click", ()=>{
+  edSrcEl.value=ED_SAMPLE; edSave(); edStatus("Ejemplo cargado en el editor.",""); edSrcEl.focus(); });
+document.getElementById("edBuild").addEventListener("click", ()=>{
+  if(!window.NP_ASM){ edStatus("No se pudo cargar el ensamblador (asm.js).","err"); return; }
+  if(!X){ edStatus("El núcleo todavía no cargó. Esperá un momento.","err"); return; }
+  const res=NP_ASM.assemble(edSrcEl.value);
+  if(!res.ok){ edStatus("✗ "+res.error,"err"); return; }
+  const ok=loadHex(res.hex);
+  afterHex(ok, "tu programa");
+  edStatus(ok ? ("✓ Compilado: "+res.words.size+" instrucciones — cargado y ejecutando en la placa.")
+              : "✗ El núcleo rechazó el .hex generado.", ok?"ok":"err");
+});
 // click a program row to toggle a breakpoint (red dot); the run stops there.
 document.getElementById("dbgProg").addEventListener("click", (e)=>{
   const row=e.target.closest(".progRow"); if(!row||!X) return;

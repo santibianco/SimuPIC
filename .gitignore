@@ -3,6 +3,7 @@
 
 # Scratch MPLAB end-to-end test project
 /e2e test project/
+/mpe2e/
 
 # Node
 node_modules/

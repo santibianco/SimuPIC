@@ -47,6 +47,7 @@ demos. To add a board: build it in `authoring.html`, **Export JSON**, paste it i
 - `index.html` — the app (WASM loader, Canvas board, Spanish UI, lab dropdown, clock).
 - `core-wasm.js` — base64-embedded WASM core (generated; see above).
 - `labs.js` — instructor lab boards (the **Placa** dropdown).
+- `asm.js` — in-browser MPASM assembler behind the **Código** editor (compiles `.asm` → `.hex`).
 - `manifest.json` + `sw.js` + `icon.svg` — PWA (installable + offline).
 - `authoring.html` — instructor-only diagram editor (excluded from the student deploy).
 
