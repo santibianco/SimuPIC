@@ -7,6 +7,22 @@ classroom (codename *New Proteus*). **Shipped and live:**
 
 ## Session log (newest first) — update this at the end of each session
 
+- **2026-06-22 (transport controls)** — Replaced the Ejecutar/Pausar/Reiniciar **text** buttons with
+  **media-transport icon controls** in the Simulación card: a **morphing play↔pause toggle** (shows ▶
+  when paused/stopped, ⏸ while running; `aria-label`/title swap to match) plus a **Stop** button. The
+  **accent highlight is on the ▶ play state** (the primary "press me to run" action); the running/pause
+  and Stop states are neutral.
+  `runtime/index.html` only (HTML + CSS + control rewiring, **no core change**).
+  **Stop = halt + power-cycle reset** (`np_reset`, stopwatch → 0, components idled) — so it both stops
+  *and* rewinds, where the old Reiniciar reset but kept running. New `setRunning/play/pause/stop/
+  togglePlay` replace the `runBtn`/`resetBtn` toggle; Space now calls `togglePlay`; the two status
+  strings that named "Reiniciar" now say "Detener". **Verified live:** auto-run lights play + advances
+  cycles; pause freezes cycles; play resumes; stop zeroes cycles + stopwatch; Space toggles play/pause;
+  no console errors. **Stop also blanks the *board***, not just the core: each LED/7-seg/button gained a
+  `clear()` that zeroes its persisted brightness (`b`) + accumulators, called from `stop()` — so a
+  stopped board visibly goes dark and resets, instead of freezing the last lit frame the way Pause does
+  (which is what made pause/stop look identical until you pressed play). Verified: a lit display reads
+  brightness 6.5 → Pause leaves it 6.5 → Stop drops it to 0. *Uncommitted.*
 - **2026-06-22 (security hardening)** — Acted on `SECURITY-REVIEW.md`. Baseline risk was already
   low (static, client-only, no data / secrets / accounts), so this closes the two real items + cheap
   defense-in-depth, **with no core/wasm change — the 83 tests and the embed are untouched, no rebuild

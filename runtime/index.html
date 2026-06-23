@@ -80,6 +80,19 @@
   .btn-block{ display:flex; width:100%; }
   .btn-row{ display:flex; gap:8px; }
   .btn-row .btn{ flex:1; }
+  .transport{ display:flex; gap:8px; }
+  .tbtn{ flex:1; display:grid; place-items:center; height:44px; border-radius:11px;
+    background:var(--surface-2); border:1px solid var(--border); color:var(--text-dim);
+    cursor:pointer; transition:background .12s, color .12s, border-color .12s, transform .04s; }
+  .tbtn:hover:not(:disabled){ background:var(--surface-3); color:var(--text); }
+  .tbtn:active:not(:disabled){ transform:translateY(1px); }
+  .tbtn:disabled{ opacity:.45; cursor:not-allowed; }
+  /* the play/pause toggle is the primary action: accent while it shows ▶ (ready to run), neutral while it shows ⏸ (running) */
+  #playPauseBtn:not(.active){ background:var(--accent); border-color:transparent; color:var(--accent-contrast); box-shadow:0 4px 14px var(--accent-soft); }
+  #playPauseBtn:not(.active):hover:not(:disabled){ background:var(--accent-strong); }
+  .tbtn .ic-pause{ display:none; }       /* play/pause toggle: show the play glyph by default… */
+  .tbtn.active .ic-play{ display:none; } /* …and swap to pause while running */
+  .tbtn.active .ic-pause{ display:block; }
   .file-list{ display:flex; flex-direction:column; gap:8px; }
   #wasmWrap{ display:block; }
   #wasmWrap.hidden{ display:none; }
@@ -228,9 +241,14 @@
 
       <div class="card">
         <div class="card-title">Simulación</div>
-        <div class="btn-row">
-          <button id="runBtn" class="btn btn-primary" disabled>Ejecutar</button>
-          <button id="resetBtn" class="btn" disabled>Reiniciar</button>
+        <div class="transport" role="group" aria-label="Controles de simulación">
+          <button id="playPauseBtn" class="tbtn" title="Ejecutar (Espacio)" aria-label="Ejecutar" disabled>
+            <svg class="ic-play" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M8 5.5v13l11-6.5z" fill="currentColor"/></svg>
+            <svg class="ic-pause" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><rect x="7" y="5" width="3.6" height="14" rx="1.2" fill="currentColor"/><rect x="13.4" y="5" width="3.6" height="14" rx="1.2" fill="currentColor"/></svg>
+          </button>
+          <button id="stopBtn" class="tbtn" title="Detener y reiniciar" aria-label="Detener" disabled>
+            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><rect x="6.5" y="6.5" width="11" height="11" rx="2" fill="currentColor"/></svg>
+          </button>
         </div>
         <div class="field">
           <label for="clock">Reloj</label>
@@ -399,7 +417,7 @@ function build(diagram){
       const pos={x:p.x+dir*52, y:p.y};
       wiring.labels.push({x:pos.x+dir*36, y:pos.y, text:c.pin, kind:"pin"});
       if(c.label) wiring.labels.push({x:pos.x, y:pos.y-23, text:c.label, kind:"cap"});
-      return {on:0,n:0,b:0,reset(){this.on=0;this.n=0;},
+      return {on:0,n:0,b:0,reset(){this.on=0;this.n=0;},clear(){this.on=0;this.n=0;this.b=0;},
         sample(pa,pb){ const lit=c.activeLow?pinVal(c.pin,pa,pb)===0:pinVal(c.pin,pa,pb)===1; if(lit)this.on++; this.n++; },
         integrate(dt){ const d=this.n?this.on/this.n:0; this.b+=(d-this.b)*(1-Math.exp(-dt/45)); },
         drawBody(ctx){ drawLed(ctx,pos.x,pos.y,this.b); } };
@@ -416,6 +434,7 @@ function build(diagram){
       // selected this frame; the decay is time-based, so it's frame-rate-agnostic.
       return {seg:[0,0,0,0,0,0,0],selN:0,b:[0,0,0,0,0,0,0],
         reset(){this.seg=[0,0,0,0,0,0,0];this.selN=0;},
+        clear(){this.seg=[0,0,0,0,0,0,0];this.selN=0;this.b=[0,0,0,0,0,0,0];},
         sample(pa,pb){ const sel=c.common?(c.commonActiveLow?pinVal(c.common,pa,pb)===0:pinVal(c.common,pa,pb)===1):true;
           if(sel){ this.selN++; for(let i=0;i<7;i++) if(pinVal(c.pins[i],pa,pb)===1) this.seg[i]++; } },
         integrate(dt){ const k=Math.exp(-dt/45);
@@ -427,7 +446,7 @@ function build(diagram){
       const bw=72, bh=44, pos={x:p.x+dir*84-(dir<0?bw:0), y:p.y-bh/2};
       buttonPins.add(c.pin);
       if(c.label) wiring.labels.push({x:pos.x+bw/2, y:pos.y+bh+13, text:c.pin, kind:"pin"});
-      return {pressed:false,reset(){},sample(){},
+      return {pressed:false,reset(){},sample(){},clear(){this.pressed=false;},
         idle(){ const pi=pinIndex(c.pin); if(X&&pi>=0) X.np_set_pin(pi, c.activeLow?1:0); },
         press(v){ this.pressed=v; const pi=pinIndex(c.pin); if(X&&pi>=0) X.np_set_pin(pi, (v?!c.activeLow:c.activeLow)?1:0); },
         hit(mx,my){ return mx>=pos.x&&mx<=pos.x+bw&&my>=pos.y&&my<=pos.y+bh; },
@@ -597,7 +616,7 @@ function frame(){
       // Persist brightness across frames (~80 ms) so a slow multiplex spanning
       // several frames still shows every digit, like the eye / real hardware.
       for(const c of components) if(c.integrate) c.integrate(dtMs);
-      if(brk){ running=false; document.getElementById("runBtn").textContent="Ejecutar"; if(dbgOpen) refreshDebug(); }
+      if(brk){ setRunning(false); if(dbgOpen) refreshDebug(); }
     }
   }
   ctx.clearRect(0,0,canvas.width,canvas.height);
@@ -618,8 +637,8 @@ function coreReady(){ populateLabs(); enable(["labSelect","dbgToggle","stepBtn",
 function setDiagram(d){ components=build(d); }
 function afterHex(ok,name){ if(!ok){ setStatus("No se pudo leer "+name,"err"); return; }
   X.np_reset(); for(const c of components) if(c.idle) c.idle();
-  enable(["runBtn","resetBtn"],true);
-  running=true; runRealMs=0; document.getElementById("runBtn").textContent="Pausar";
+  enable(["playPauseBtn","stopBtn"],true);
+  runRealMs=0; setRunning(true);
   setStatus("Cargado "+name+" ✓ — ejecutando.","ok"); breakSet.clear(); if(X) X.np_clear_breaks(); if(dbgOpen){ buildProgView(); refreshDebug(); } }
 
 document.getElementById("wasmFile").addEventListener("change", async (e)=>{
@@ -636,7 +655,7 @@ const BUILTIN_LABS = [
   { name:"Ejemplo · Parpadeo (LED en RB0)",                   group:"Ejemplos", diagram:LED_DIAGRAM, hex:BLINK_HEX,          clock:"1 kHz" },
   { name:"Ejemplo · Contador de 7 segmentos",                 group:"Ejemplos", diagram:SEG_DIAGRAM, hex:SEG_COUNTER_HEX,    clock:"4 MHz" },
   { name:"Ejemplo · Contador multiplexado de 2 dígitos",      group:"Ejemplos", diagram:LAB_DIAGRAM, hex:MUX_COUNTER_HEX,    clock:"4 MHz" },
-  { name:"Ejemplo · Contador EEPROM (sobrevive al Reiniciar)",group:"Ejemplos", diagram:SEG_DIAGRAM, hex:EEPROM_COUNTER_HEX, clock:"4 MHz" },
+  { name:"Ejemplo · Contador EEPROM (sobrevive al reinicio)",  group:"Ejemplos", diagram:SEG_DIAGRAM, hex:EEPROM_COUNTER_HEX, clock:"4 MHz" },
 ];
 // labs.js may set window.NP_LABS to authoring-tool exports ({name, group?, components})
 // or full lab objects ({name, group?, diagram, hex?, clock?}). `group` is the dropdown
@@ -663,14 +682,22 @@ document.getElementById("labSelect").addEventListener("change", (e)=>{
   setDiagram(lab.diagram);
   if(lab.hex){
     afterHex(loadHex(lab.hex), lab.name);
-    if(/eeprom/i.test(lab.name)) setStatus("Cargado "+lab.name+" ✓ — apretá Reiniciar para cortar la energía; el conteo se mantiene.","ok");
+    if(/eeprom/i.test(lab.name)) setStatus("Cargado "+lab.name+" ✓ — apretá Detener (■) para cortar la energía y volvé a Ejecutar; el conteo se mantiene.","ok");
   }else{
     for(const c of components) if(c.idle) c.idle();
     setStatus("Placa “"+lab.name+"” cargada ✓ — ahora cargá tu programa (.hex).","ok");
   }
 });
-document.getElementById("runBtn").addEventListener("click", ()=>{ running=!running; if(running && X && breakSet.has(X.np_pc())) X.np_step(); document.getElementById("runBtn").textContent=running?"Pausar":"Ejecutar"; });
-document.getElementById("resetBtn").addEventListener("click", ()=>{ X.np_reset(); runRealMs=0; for(const c of components) if(c.idle) c.idle(); if(dbgOpen) refreshDebug(); });
+// ===== transport: play / pause / stop trio (play stays lit while running) =====
+const playPauseBtn=document.getElementById("playPauseBtn"), stopBtn=document.getElementById("stopBtn");
+function setRunning(on){ running=on; playPauseBtn.classList.toggle("active", on); // .active (running) → shows the pause glyph
+  playPauseBtn.setAttribute("aria-label", on?"Pausar":"Ejecutar"); playPauseBtn.title=(on?"Pausar":"Ejecutar")+" (Espacio)"; }
+function play(){ if(playPauseBtn.disabled||!X||running) return; if(breakSet.has(X.np_pc())) X.np_step(); setRunning(true); }
+function pause(){ if(playPauseBtn.disabled||!running) return; setRunning(false); if(dbgOpen) refreshDebug(); }
+function stop(){ if(stopBtn.disabled||!X) return; setRunning(false); X.np_reset(); runRealMs=0; for(const c of components){ if(c.idle) c.idle(); if(c.clear) c.clear(); } if(dbgOpen) refreshDebug(); }
+function togglePlay(){ if(running) pause(); else play(); }
+playPauseBtn.addEventListener("click", togglePlay);
+stopBtn.addEventListener("click", stop);
 
 // ===== Depurador (debugger panel) =====
 const STATUS_BITS = [["C",0],["DC",1],["Z",2],["RP0",5]];
@@ -780,7 +807,7 @@ function highlightPC(){
 function snapBoard(){ if(!X) return; const pa=X.np_read_porta(), pb=X.np_read_portb(); for(const c of components){ if(c.reset)c.reset(); if(c.sample)c.sample(pa,pb); if(c.integrate)c.integrate(1); } }
 function stepN(n){
   if(!X) return;
-  running=false; document.getElementById("runBtn").textContent="Ejecutar";
+  setRunning(false);
   for(let i=0;i<n;i++){ X.np_step(); if(breakSet.has(X.np_pc())) break; }
   snapBoard(); refreshDebug();
 }
@@ -815,7 +842,7 @@ document.getElementById("dbgProg").addEventListener("click", (e)=>{
 });
 // inline hex edit of a register/cell (pauses first so the live refresh can't clobber it).
 function editCell(span, cur, write){
-  running=false; document.getElementById("runBtn").textContent="Ejecutar";
+  setRunning(false);
   const inp=document.createElement("input"); inp.className="cellEdit";
   inp.value=cur.toString(16).toUpperCase().padStart(2,"0");
   span.replaceWith(inp); inp.focus(); inp.select();
@@ -862,10 +889,10 @@ stageEl.addEventListener("drop", async (e)=>{ e.preventDefault(); stageEl.classL
   if(!/\.hex$/i.test(f.name)){ setStatus("Arrastrá un archivo .hex.","err"); return; }
   afterHex(loadHex(await f.text()), f.name); });
 
-// ===== keyboard: space toggles Ejecutar / Pausar =====
+// ===== keyboard: space toggles play / pause =====
 window.addEventListener("keydown",(e)=>{
   if(e.code==="Space" && !/^(INPUT|SELECT|TEXTAREA|BUTTON)$/.test(e.target.tagName)){
-    const b=document.getElementById("runBtn"); if(!b.disabled){ e.preventDefault(); b.click(); }
+    if(!playPauseBtn.disabled){ e.preventDefault(); togglePlay(); }
   }
 });
 
