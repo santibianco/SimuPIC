@@ -18,7 +18,8 @@ classroom (codename *New Proteus*). **Shipped and live:**
   byte-identical** to the original hex — so selecting a demo shows faithful source in the editor that
   round-trips back to the same program. Loading still runs the hex; the `.asm` is editor source. The
   reconstructed sources live as `*_ASM` consts next to the `*_HEX` ones in `runtime/index.html`.
-  *Uncommitted.*
+  Also dropped the now-redundant **Cargar ejemplo** button — examples carry their own source now (the
+  built-in counter sample still loads into an empty editor on first open). *Uncommitted.*
 
 - **2026-06-23 (board: button-on-output warning)** — New 4th pin-square colour on the chip: **amber =
   a button is wired to a pin the firmware configured as an OUTPUT and it's pressed** — surfaces a

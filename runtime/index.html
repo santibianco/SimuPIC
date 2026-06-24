@@ -297,11 +297,10 @@
           <input id="edFile" type="file" accept=".asm,.inc,.txt" style="display:none" />
           <button id="edOpen" class="btn">Abrir .asm</button>
           <button id="edDownload" class="btn">Descargar .asm</button>
-          <button id="edSample" class="btn">Cargar ejemplo</button>
           <button id="edBuild" class="btn btn-primary">Compilar y cargar ▸</button>
         </div>
         <textarea id="edSrc" class="edSrc" spellcheck="false" autocomplete="off" autocapitalize="off" wrap="off"
-          placeholder="; Escribí tu código MPASM acá, o tocá «Cargar ejemplo»."></textarea>
+          placeholder="; Escribí tu código MPASM acá, o elegí un ejemplo en «Placa»."></textarea>
         <div id="edStatus" class="edStatus"></div>
       </div>
 
@@ -1108,8 +1107,6 @@ document.getElementById("edToggle").addEventListener("click", ()=>{
   document.getElementById("edPanel").classList.toggle("hidden", !edOpen);
   document.getElementById("edToggle").textContent=(edOpen?"▾":"▸")+" Editor de código (ASM)";
 });
-document.getElementById("edSample").addEventListener("click", ()=>{
-  edSrcEl.value=ED_SAMPLE; edSave(); edStatus("Ejemplo cargado en el editor.",""); edSrcEl.focus(); });
 document.getElementById("edDownload").addEventListener("click", ()=>{
   const blob=new Blob([edSrcEl.value], {type:"text/plain;charset=utf-8"});
   const a=document.createElement("a"); a.href=URL.createObjectURL(blob);
