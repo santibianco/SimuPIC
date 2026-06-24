@@ -60,10 +60,18 @@
   [data-theme="dark"] .icon-moon{ display:none; }
   [data-theme="light"] .icon-sun{ display:none; }
 
-  /* ===== layout ===== */
-  .layout{ display:flex; gap:20px; align-items:flex-start; max-width:1320px; margin:0 auto; padding:20px; }
-  .rail{ width:288px; flex:0 0 288px; display:flex; flex-direction:column; gap:14px; position:sticky; top:74px; }
-  .stage{ flex:1 1 auto; min-width:0; display:flex; flex-direction:column; align-items:center; gap:14px; }
+  /* ===== layout: rail · stage · debugger dock (IDE-style workspace) ===== */
+  .layout{ --rail-w:272px; --dock-w:472px;
+    display:grid; gap:16px; align-items:start;
+    grid-template-columns: var(--rail-w) minmax(0,1fr) var(--dock-w);
+    grid-template-areas:"rail stage dock";
+    max-width:1840px; margin:0 auto; padding:18px 20px; }
+  .layout.no-dock{ grid-template-columns: var(--rail-w) minmax(0,1fr); grid-template-areas:"rail stage"; }
+  .layout.no-dock .dock{ display:none; }
+  .rail{ grid-area:rail; display:flex; flex-direction:column; gap:14px; position:sticky; top:74px; }
+  .stage{ grid-area:stage; min-width:0; display:flex; flex-direction:column; gap:14px; }
+  .dock{ grid-area:dock; position:sticky; top:74px; align-self:start; min-width:0;
+    max-height:calc(100vh - 90px); }
 
   /* ===== cards / controls ===== */
   .card{ background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:14px; box-shadow:var(--shadow-sm); }
@@ -116,9 +124,21 @@
     padding:11px 13px; box-shadow:var(--shadow-sm); line-height:1.45; }
 
   /* ===== board ===== */
-  .board-wrap{ width:100%; display:flex; justify-content:center; }
-  #board{ display:block; width:100%; max-width:920px; height:auto; aspect-ratio:920/640;
+  .board-wrap{ position:relative; width:100%; aspect-ratio:920/640; overflow:hidden;
     background:var(--board); border:1px solid var(--board-border); border-radius:18px; box-shadow:var(--shadow); }
+  #board{ display:block; width:100%; height:100%; touch-action:none; cursor:grab; }
+  #board.panning{ cursor:grabbing; }
+  /* floating zoom toolbar (top-right of the board) */
+  .zoombar{ position:absolute; top:12px; right:12px; z-index:5; display:flex; align-items:center; gap:4px;
+    padding:4px; background:rgba(13,20,17,.78); border:1px solid rgba(120,160,140,.28); border-radius:12px;
+    backdrop-filter:blur(6px); box-shadow:0 6px 18px rgba(0,0,0,.32); }
+  .zbtn{ width:30px; height:30px; display:grid; place-items:center; border-radius:8px; border:1px solid transparent;
+    background:transparent; color:#cfeadd; font-size:17px; line-height:1; font-family:inherit; cursor:pointer; transition:background .12s; }
+  .zbtn:hover{ background:rgba(120,160,140,.20); }
+  .zbtn.wide{ width:auto; padding:0 10px; font-size:12px; font-weight:600; }
+  .zlabel{ min-width:42px; text-align:center; font:600 12px ui-monospace,monospace; color:#bfe6d0; user-select:none; }
+  .zsep{ width:1px; height:18px; background:rgba(120,160,140,.28); margin:0 2px; }
+  .board-hint{ font-size:11.5px; color:var(--text-faint); text-align:center; margin-top:-4px; }
 
   /* ===== debugger ===== */
   .dbgToggle{ align-self:center; background:var(--surface); color:var(--text-dim);
@@ -191,11 +211,11 @@
   .watchBar button:hover{ background:var(--surface-3); }
   .dbgWatch{ background:var(--code-bg); border:1px solid var(--code-border); border-radius:10px; padding:7px 9px; min-height:28px; }
   .watchEmpty{ color:var(--text-faint); font-size:11px; line-height:1.4; }
-  .watchRow{ display:flex; gap:10px; align-items:center; padding:1px 0; }
-  .watchRow .wname{ color:var(--accent); width:72px; }
-  .watchRow .waddr{ color:var(--code-addr); width:46px; }
-  .watchRow .wval{ color:var(--code-text); width:46px; }
-  .watchRow .wbin{ color:var(--code-addr); width:72px; }
+  .watchRow{ display:flex; gap:6px; align-items:center; padding:1px 0; font-size:10.5px; }
+  .watchRow .wname{ color:var(--accent); width:46px; font-weight:600; }
+  .watchRow .waddr{ color:var(--code-addr); width:30px; }
+  .watchRow .wval{ color:var(--code-text); width:30px; }
+  .watchRow .wbin{ color:var(--code-addr); width:50px; }
   .watchRow .wdel{ margin-left:auto; background:none; border:none; color:var(--text-faint); cursor:pointer; font-size:15px; line-height:1; }
   .watchRow .wdel:hover{ color:var(--err); }
   .cellEdit{ width:34px; background:var(--surface); color:var(--accent); border:1px solid var(--accent); border-radius:4px; font-family:ui-monospace,monospace; font-size:11px; padding:0 2px; }
@@ -209,13 +229,72 @@
   .stkRow.used .sv{ color:var(--code-word); }
   .stkRow .stag{ color:var(--accent); font-size:11px; }
 
+  /* ===== app-bar labelled button (debugger toggle) ===== */
+  .barbtn{ display:inline-flex; align-items:center; gap:7px; height:38px; padding:0 13px; border-radius:11px;
+    background:var(--surface-2); border:1px solid var(--border); color:var(--text-dim); font:600 13px inherit; font-family:inherit; cursor:pointer;
+    transition:background .12s, color .12s, border-color .12s; }
+  .barbtn:hover{ background:var(--surface-3); color:var(--text); }
+  .barbtn.active{ background:var(--accent-soft); color:var(--accent); border-color:transparent; }
+
+  /* ===== debugger dock ===== */
+  .dock{ display:flex; align-items:stretch; }
+  .dockResize{ flex:0 0 11px; align-self:stretch; cursor:col-resize; position:relative; }
+  .dockResize::before{ content:""; position:absolute; left:4px; top:50%; transform:translateY(-50%);
+    width:3px; height:46px; border-radius:3px; background:var(--border); transition:background .12s; }
+  .dockResize:hover::before, .dockResize.drag::before{ background:var(--accent); }
+  .dockInner{ flex:1 1 auto; min-width:0; display:flex; flex-direction:column; gap:10px;
+    background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:12px;
+    box-shadow:var(--shadow-sm); max-height:calc(100vh - 90px); }
+  .dockBar{ display:flex; align-items:center; gap:8px; }
+  .dockTitle{ font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--text-faint); }
+  .dockSpacer{ flex:1; }
+  .dockIcon{ width:26px; height:26px; display:grid; place-items:center; border-radius:8px;
+    background:var(--surface-2); border:1px solid var(--border); color:var(--text-dim); font-size:13px; cursor:pointer; }
+  .dockIcon:hover{ background:var(--surface-3); color:var(--text); }
+  .dbgHead{ display:flex; flex-direction:column; gap:9px; padding:9px 11px; background:var(--surface-2);
+    border:1px solid var(--border-soft); border-radius:11px; font-family:ui-monospace, monospace; font-size:12px; color:var(--text-dim); }
+  .dbgRegs{ display:flex; flex-wrap:wrap; gap:5px 14px; align-items:center; }
+  .dbgRegs b{ color:var(--text); font-weight:700; }
+  .dbgStep{ display:flex; gap:6px; }
+  .dbgPanes{ flex:1 1 auto; min-height:0; display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .dbgPane{ min-width:0; min-height:0; display:flex; flex-direction:column;
+    border:1px solid var(--border-soft); border-radius:11px; overflow:hidden; background:var(--code-bg); }
+  .dbgPaneHead{ display:flex; align-items:center; gap:6px; padding:6px; background:var(--surface-2); border-bottom:1px solid var(--border-soft); }
+  .paneView{ flex:1 1 auto; min-width:0; background:var(--surface); color:var(--text); border:1px solid var(--border);
+    border-radius:8px; padding:5px 8px; font:600 12px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; cursor:pointer; }
+  .dbgPaneBody{ flex:1 1 auto; min-height:0; overflow:auto; padding:8px;
+    font-family:ui-monospace, monospace; font-size:12px; color:var(--text-dim); }
+  /* views fill their pane (drop the standalone panel chrome) */
+  .dbgPaneBody .dbgProg{ max-height:none; border:none; border-radius:0; background:transparent; }
+  .dbgPaneBody .dbgData, .dbgPaneBody .dbgSFR, .dbgPaneBody .dbgStack, .dbgPaneBody .dbgWatch{ border:none; background:transparent; padding:0; }
+  .dbgEmpty{ color:var(--text-faint); font-size:11.5px; line-height:1.5; padding:6px 2px; }
+  .paneBtn{ flex:0 0 auto; width:27px; height:27px; display:grid; place-items:center; border-radius:8px;
+    background:var(--surface); border:1px solid var(--border); color:var(--text-dim); font-size:13px; line-height:1; cursor:pointer; transition:background .12s, color .12s; }
+  .paneBtn:hover{ background:var(--surface-3); color:var(--text); }
+  .paneSplit{ display:none; }                          /* shown only in single-pane mode (to re-open the 2nd pane) */
+  .dbgPanes.single{ grid-template-columns:1fr; }
+  .dbgPanes.single .dbgPane.paneB{ display:none; }
+  .dbgPanes.single .paneSplit{ display:grid; }
+
   /* ===== responsive ===== */
+  /* below 1200px: debugger un-docks to a full-width panel under the stage; single pane (dual-view is desktop-only) */
+  @media (max-width: 1200px){
+    .layout{ grid-template-columns: var(--rail-w) minmax(0,1fr); grid-template-areas:"rail stage" "dock dock"; }
+    .layout.no-dock{ grid-template-columns: var(--rail-w) minmax(0,1fr); grid-template-areas:"rail stage"; }
+    .dock{ position:static; max-height:none; }
+    .dockInner{ max-height:none; }
+    .dockResize{ display:none; }
+    .dbgPanes{ grid-template-columns:1fr; }
+    .dbgPane.paneB{ display:none; }
+    .dbgPanes .paneSplit{ display:none !important; }   /* dual view is desktop-only */
+    .dbgPaneBody{ max-height:62vh; }
+  }
   @media (max-width: 920px){
-    .layout{ flex-direction:column; padding:14px; gap:14px; }
-    .rail{ width:100%; flex:none; position:static; flex-direction:row; flex-wrap:wrap; }
+    .layout{ grid-template-columns:1fr; grid-template-areas:"rail" "stage" "dock"; padding:14px; gap:14px; }
+    .layout.no-dock{ grid-template-columns:1fr; grid-template-areas:"rail" "stage"; }
+    .rail{ position:static; flex-direction:row; flex-wrap:wrap; }
     .rail .card{ flex:1 1 240px; }
     .rail>#status{ flex:1 1 100%; }
-    .stage{ width:100%; }
   }
 </style>
 <script>
@@ -240,6 +319,10 @@
       <span class="brand-tag">PIC16F628A</span>
     </div>
     <div class="appbar-spacer"></div>
+    <button id="dockToggle" class="barbtn" title="Mostrar u ocultar el depurador" aria-label="Mostrar u ocultar el depurador" aria-pressed="true" disabled>
+      <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><rect x="3" y="4.5" width="18" height="15" rx="2.4" fill="none" stroke="currentColor" stroke-width="1.7"/><line x1="14.5" y1="4.5" x2="14.5" y2="19.5" stroke="currentColor" stroke-width="1.7"/></svg>
+      <span class="barbtn-tx">Depurador</span>
+    </button>
     <button id="themeBtn" class="iconbtn" title="Cambiar tema (claro / oscuro)" aria-label="Cambiar tema">
       <svg class="icon-sun" viewBox="0 0 24 24" width="19" height="19" aria-hidden="true"><circle cx="12" cy="12" r="4" fill="currentColor"/><path d="M12 2.4v2.5M12 19.1v2.5M2.4 12h2.5M19.1 12h2.5M5.2 5.2l1.8 1.8M17 17l1.8 1.8M18.8 5.2L17 7M7 17l-1.8 1.8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
       <svg class="icon-moon" viewBox="0 0 24 24" width="19" height="19" aria-hidden="true"><path d="M20.5 14.8A8.2 8.2 0 1 1 9.2 3.5a6.4 6.4 0 0 0 11.3 11.3z" fill="currentColor"/></svg>
@@ -285,9 +368,17 @@
     </aside>
 
     <main class="stage">
-      <div class="board-wrap">
+      <div class="board-wrap" id="boardWrap">
         <canvas id="board" width="920" height="640"></canvas>
+        <div class="zoombar" role="group" aria-label="Zoom de la placa">
+          <button id="zoomOut" class="zbtn" title="Alejar" aria-label="Alejar">&minus;</button>
+          <span id="zoomLabel" class="zlabel">100%</span>
+          <button id="zoomIn" class="zbtn" title="Acercar" aria-label="Acercar">+</button>
+          <span class="zsep"></span>
+          <button id="zoomFit" class="zbtn wide" title="Ajustar la placa a la vista" aria-label="Ajustar">Ajustar</button>
+        </div>
       </div>
+      <div class="board-hint">Rueda o pellizco para hacer zoom · arrastrá para mover · doble clic para ajustar</div>
 
       <button id="edToggle" class="dbgToggle" disabled>▸ Editor de código (ASM)</button>
       <div id="edPanel" class="dbgPanel edPanel hidden">
@@ -304,43 +395,48 @@
         <div id="edStatus" class="edStatus"></div>
       </div>
 
-      <button id="dbgToggle" class="dbgToggle" disabled>▸ Depurador</button>
-      <div id="dbgPanel" class="dbgPanel hidden">
-        <div class="dbgHeader">
-          <span>Ciclos <b id="dbgCycles">0</b></span>
-          <span>PC <b id="dbgPC">0x000</b></span>
-          <span>W <b id="dbgW">0x00</b></span>
-          <span>STATUS <b id="dbgStatus">0x18</b></span>
-          <span class="dbgFlags" id="dbgFlags"></span>
-          <button id="stepBtn" disabled>Paso ▸</button>
-          <button id="step10" disabled>×10</button>
-          <button id="step100" disabled>×100</button>
+    </main>
+
+    <aside class="dock" id="dock">
+      <div class="dockResize" id="dockResize" title="Arrastrá para cambiar el ancho"></div>
+      <div class="dockInner">
+        <div class="dockBar">
+          <span class="dockTitle">Depurador</span>
+          <span class="dockSpacer"></span>
+          <button id="dockClose" class="dockIcon" title="Ocultar el depurador" aria-label="Ocultar el depurador">✕</button>
         </div>
-        <div class="dbgTabs">
-          <button class="dbgTab active" data-view="prog">Programa</button>
-          <button class="dbgTab" data-view="data">Datos</button>
-          <button class="dbgTab" data-view="sfr">SFR</button>
-          <button class="dbgTab" data-view="stack">Pila</button>
-          <button class="dbgTab" data-view="watch">Vigilar</button>
-        </div>
-        <div id="view-prog" class="dbgView"><div id="dbgProg" class="dbgProg"></div></div>
-        <div id="view-data" class="dbgView hidden">
-          <div class="dataBankBar">Banco
-            <button id="bank0" class="bankBtn active">0</button><button id="bank1" class="bankBtn">1</button>
+        <div class="dbgHead">
+          <div class="dbgRegs">
+            <span>Ciclos <b id="dbgCycles">0</b></span>
+            <span>PC <b id="dbgPC">0x000</b></span>
+            <span>W <b id="dbgW">0x00</b></span>
+            <span>STATUS <b id="dbgStatus">0x18</b></span>
+            <span class="dbgFlags" id="dbgFlags"></span>
           </div>
-          <div id="dbgData" class="dbgData"></div>
-        </div>
-        <div id="view-sfr" class="dbgView hidden"><div id="dbgSFR" class="dbgSFR"></div></div>
-        <div id="view-stack" class="dbgView hidden"><div id="dbgStack" class="dbgStack"></div></div>
-        <div id="view-watch" class="dbgView hidden">
-          <div class="watchBar">
-            <input id="watchInput" type="text" placeholder="0x20 o PORTB" autocomplete="off" />
-            <button id="watchAdd">Agregar</button>
+          <div class="dbgStep">
+            <button id="stepBtn" disabled>Paso ▸</button>
+            <button id="step10" disabled>×10</button>
+            <button id="step100" disabled>×100</button>
           </div>
-          <div id="dbgWatch" class="dbgWatch"></div>
+        </div>
+        <div class="dbgPanes" id="dbgPanes">
+          <section class="dbgPane paneA" data-pane="A">
+            <header class="dbgPaneHead">
+              <select class="paneView" data-pane="A" aria-label="Vista del panel izquierdo"></select>
+              <button id="paneSplit" class="paneBtn paneSplit" title="Abrir un segundo panel" aria-label="Abrir un segundo panel">⊞</button>
+            </header>
+            <div class="dbgPaneBody" data-pane="A"></div>
+          </section>
+          <section class="dbgPane paneB" data-pane="B">
+            <header class="dbgPaneHead">
+              <select class="paneView" data-pane="B" aria-label="Vista del panel derecho"></select>
+              <button id="paneClose" class="paneBtn paneClose" title="Cerrar este panel" aria-label="Cerrar este panel">✕</button>
+            </header>
+            <div class="dbgPaneBody" data-pane="B"></div>
+          </section>
         </div>
       </div>
-    </main>
+    </aside>
   </div>
 
 <!-- Optional embedded core: `core-wasm.js` defines window.NP_WASM_BASE64 so the
@@ -764,7 +860,7 @@ function drawChip(ctx){
   ctx.fillStyle="#c9d1d9"; ctx.font="bold 13px system-ui"; ctx.textAlign="center";
   ctx.save(); ctx.translate(CHIP.x+CHIP.w/2,CHIP.y+CHIP.h/2); ctx.fillText("PIC16F628A",0,-6);
   ctx.fillStyle="#6e7681"; ctx.font="11px system-ui"; ctx.fillText("DIP-18",0,12); ctx.restore();
-  ctx.font="10px ui-monospace, monospace";
+  ctx.font="11px ui-monospace, monospace";
   // live pin-state squares (Proteus-style): red = 1, blue = 0; grey = no defined
   // value — a power pin (VSS/VDD), an input with nothing wired to it, or before the
   // core loads. Outputs always show their driven level; an input shows a level only
@@ -774,7 +870,7 @@ function drawChip(ctx){
   const ready=!!X, pa=ready?X.np_read_porta():0, pb=ready?X.np_read_portb():0;
   const trisA=ready?X.np_read_data(0x85):0xFF, trisB=ready?X.np_read_data(0x86):0xFF;
   for(const name in PIN){
-    const p=PIN[name], isIo=/^R[AB]/.test(name), s=9;
+    const p=PIN[name], isIo=/^R[AB]/.test(name), s=11;
     ctx.strokeStyle="#8b949e"; ctx.lineWidth=2.5; ctx.beginPath();
     ctx.moveTo(p.side==="L"?CHIP.x:CHIP.x+CHIP.w,p.y); ctx.lineTo(p.x,p.y); ctx.stroke();
     let col="#6e7681";
@@ -782,12 +878,13 @@ function drawChip(ctx){
       const btn=buttonPins.has(name)?components.find(k=>k.pin===name&&k.press):null;
       if(btn&&btn.pressed&&!input) col="#f5b301";                 // botón apretado sobre un pin de SALIDA → conflicto (TRIS mal)
       else if(!input || buttonPins.has(name)) col=pinVal(name,pa,pb)?"#f0594e":"#3f7fe0"; }
-    roundRect(ctx, p.x-s/2, p.y-s/2, s, s, 2); ctx.fillStyle=col; ctx.fill();
-    ctx.lineWidth=1; ctx.strokeStyle="rgba(0,0,0,0.4)"; ctx.stroke();
-    ctx.fillStyle=isIo?"#9fb6c9":"#6e7681"; ctx.textAlign=p.side==="L"?"end":"start";
-    ctx.fillText(name, p.side==="L"?p.x-s/2-5:p.x+s/2+5, p.y+3);
-    ctx.fillStyle="#586069"; ctx.textAlign="center";
-    ctx.fillText(p.num, p.side==="L"?CHIP.x+12:CHIP.x+CHIP.w-12, p.y+3);
+    roundRect(ctx, p.x-s/2, p.y-s/2, s, s, 3); ctx.fillStyle=col; ctx.fill();
+    ctx.lineWidth=1; ctx.strokeStyle="rgba(0,0,0,0.45)"; ctx.stroke();
+    ctx.font=isIo?"bold 11px ui-monospace, monospace":"11px ui-monospace, monospace";
+    ctx.fillStyle=isIo?"#bcd0e0":"#7c8794"; ctx.textAlign=p.side==="L"?"end":"start";
+    ctx.fillText(name, p.side==="L"?p.x-s/2-6:p.x+s/2+6, p.y+3.5);
+    ctx.font="10px ui-monospace, monospace"; ctx.fillStyle="#5b6470"; ctx.textAlign="center";
+    ctx.fillText(p.num, p.side==="L"?CHIP.x+13:CHIP.x+CHIP.w-13, p.y+3.5);
   }
 }
 function drawLed(ctx,x,y,b){
@@ -801,16 +898,24 @@ function drawSeven(ctx,x,y,b,W,H){
   const t=Math.round(W*0.145);
   const s=[[x+t,y,W-2*t,t],[x+W-t,y+t,t,H/2-t],[x+W-t,y+H/2,t,H/2-t],[x+t,y+H-t,W-2*t,t],
            [x,y+H/2,t,H/2-t],[x,y+t,t,H/2-t],[x+t,y+H/2-t/2,W-2*t,t]];
-  ctx.save(); ctx.fillStyle="#070d09"; ctx.strokeStyle="#30363d"; ctx.lineWidth=1;
-  roundRect(ctx,x-14,y-14,W+28,H+28,10); ctx.fill(); ctx.stroke();
-  for(let i=0;i<7;i++){ const v=b[i]; ctx.fillStyle=`rgba(255,70,60,${0.05+0.95*v})`;
-    ctx.shadowColor="rgba(255,70,60,0.9)"; ctx.shadowBlur=v>0.05?12*v:0; const r=s[i]; ctx.fillRect(r[0],r[1],r[2],r[3]); }
+  ctx.save();
+  ctx.fillStyle="#0a0f0c"; ctx.strokeStyle="#2c3540"; ctx.lineWidth=1.5;
+  roundRect(ctx,x-14,y-14,W+28,H+28,12); ctx.fill(); ctx.stroke();
+  ctx.fillStyle="rgba(255,72,60,0.10)";                       // ghost: the digit's shape is always faintly visible, like a real LED display
+  for(let i=0;i<7;i++){ const r=s[i]; ctx.fillRect(r[0],r[1],r[2],r[3]); }
+  for(let i=0;i<7;i++){ const v=b[i]; if(v<=0.02) continue;    // lit segments on top
+    ctx.fillStyle=`rgba(255,74,62,${0.16+0.84*v})`;
+    ctx.shadowColor="rgba(255,70,60,0.95)"; ctx.shadowBlur=13*v;
+    const r=s[i]; ctx.fillRect(r[0],r[1],r[2],r[3]); ctx.shadowBlur=0; }
   ctx.restore();
 }
 function drawButton(ctx,x,y,pressed,label){
-  ctx.save(); ctx.fillStyle=pressed?"#2ea043":"#21262d"; ctx.strokeStyle="#30363d"; ctx.lineWidth=2;
-  roundRect(ctx,x,y,72,44,9); ctx.fill(); ctx.stroke();
-  ctx.fillStyle="#e6edf3"; ctx.font="12px ui-monospace, monospace"; ctx.textAlign="center"; ctx.textBaseline="middle";
+  ctx.save();
+  roundRect(ctx,x,y,72,44,10);
+  ctx.fillStyle=pressed?"#2ea043":"#262d36"; ctx.fill();
+  ctx.lineWidth=2; ctx.strokeStyle=pressed?"#48d869":"#3a424d"; ctx.stroke();
+  if(!pressed){ roundRect(ctx,x+5,y+5,62,15,7); ctx.fillStyle="rgba(255,255,255,0.05)"; ctx.fill(); }  // subtle cap highlight
+  ctx.fillStyle=pressed?"#052810":"#e6edf3"; ctx.font="bold 12.5px ui-monospace, monospace"; ctx.textAlign="center"; ctx.textBaseline="middle";
   ctx.fillText(label,x+36,y+22); ctx.restore();
 }
 function roundRect(ctx,x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y);
@@ -821,7 +926,8 @@ const canvas=document.getElementById("board"), ctx=canvas.getContext("2d"), stat
 let wiring=null;
 let buttonPins=new Set();   // pins that have a button wired to them (drives an input)
 let components=build(LED_DIAGRAM), running=false;
-let dbgOpen=false, dbgTick=0, dbgView="prog", dbgBank=0;
+let dbgOpen=true, dbgTick=0;
+const view={ zoom:1, panX:0, panY:0, base:1 };   // board view transform (zoom + pan); base fits the 920-wide board to the canvas, recomputed each frame
 const breakSet=new Set();
 const SUBSTEPS=64;
 let clockHz=4000000;
@@ -848,10 +954,24 @@ function frame(){
       if(brk){ setRunning(false); if(dbgOpen) refreshDebug(); }
     }
   }
-  ctx.clearRect(0,0,canvas.width,canvas.height);
+  // ---- render with a hi-DPI backing store + the zoom/pan transform ----
+  // The board is authored in a fixed 920x640 space; `base` scales that to the
+  // canvas width, then the user's zoom/pan is layered on. Timing is untouched —
+  // this only changes how the already-computed state is drawn.
+  const dpr=Math.max(1, Math.min(3, window.devicePixelRatio||1));
+  const cw=canvas.clientWidth||920, ch=canvas.clientHeight||640;
+  const bw=Math.round(cw*dpr), bh=Math.round(ch*dpr);
+  if(canvas.width!==bw||canvas.height!==bh){ canvas.width=bw; canvas.height=bh; }
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.clearRect(0,0,cw,ch);
+  view.base=cw/920;
+  ctx.save();
+  ctx.translate(view.panX, view.panY);
+  ctx.scale(view.base*view.zoom, view.base*view.zoom);
   drawChip(ctx);
   for(const c of components) c.drawBody(ctx);
   drawWiring(ctx);
+  ctx.restore();
   updateReadout();
   if(dbgOpen && running && (++dbgTick % 6 === 0)) refreshDebug();
   requestAnimationFrame(frame);
@@ -862,13 +982,13 @@ requestAnimationFrame(frame);
 function esc(s){ return String(s).replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
 function setStatus(m,c){ statusEl.textContent=m; statusEl.className="status "+(c||""); }
 function enable(ids,on){ ids.forEach((id)=>document.getElementById(id).disabled=!on); }
-function coreReady(){ populateLabs(); enable(["labSelect","dbgToggle","edToggle","stepBtn","step10","step100"],true); }
-function setDiagram(d){ components=build(d); }
+function coreReady(){ populateLabs(); enable(["labSelect","dockToggle","edToggle","stepBtn","step10","step100"],true); if(dbgOpen){ rebuildProg(); refreshDebug(); } }
+function setDiagram(d){ components=build(d); resetView(); }
 function afterHex(ok,name){ if(!ok){ setStatus("No se pudo leer "+name,"err"); return; }
   X.np_reset(); for(const c of components) if(c.idle) c.idle();
   enable(["playPauseBtn","stopBtn"],true);
   runRealMs=0; setRunning(true);
-  setStatus("Cargado "+name+" ✓ — ejecutando.","ok"); breakSet.clear(); if(X) X.np_clear_breaks(); if(dbgOpen){ buildProgView(); refreshDebug(); } }
+  setStatus("Cargado "+name+" ✓ — ejecutando.","ok"); breakSet.clear(); if(X) X.np_clear_breaks(); if(dbgOpen){ rebuildProg(); refreshDebug(); } }
 
 document.getElementById("wasmFile").addEventListener("change", async (e)=>{
   const f=e.target.files[0]; if(!f) return;
@@ -931,37 +1051,12 @@ function togglePlay(){ if(running) pause(); else play(); }
 playPauseBtn.addEventListener("click", togglePlay);
 stopBtn.addEventListener("click", stop);
 
-// ===== Depurador (debugger panel) =====
+// ===== Depurador (debugger dock) =====
+// Two panes; each pane independently picks any view (Programa / Datos / SFR /
+// Pila / Vigilar), so a student can watch e.g. the program and a watch list at the
+// same time. Below 1200px the dock un-docks beneath the board and only the left
+// pane shows — the dual view is a desktop-only convenience.
 const STATUS_BITS = [["C",0],["DC",1],["Z",2],["RP0",5]];
-function refreshDebug(){
-  if(!X) return;
-  const pc=X.np_pc(), w=X.np_w(), cyc=X.np_cycles(), st=X.np_read_data(0x03);
-  document.getElementById("dbgCycles").textContent = cyc.toLocaleString("es-AR");
-  document.getElementById("dbgPC").textContent = "0x"+pc.toString(16).toUpperCase().padStart(3,"0");
-  document.getElementById("dbgW").textContent = "0x"+w.toString(16).toUpperCase().padStart(2,"0");
-  document.getElementById("dbgStatus").textContent = "0x"+st.toString(16).toUpperCase().padStart(2,"0");
-  document.getElementById("dbgFlags").innerHTML = STATUS_BITS.map(([n,b])=>`<span class="${(st>>b)&1?"on":""}">${n}</span>`).join("");
-  refreshActiveView();
-}
-function refreshActiveView(){
-  if(dbgView==="prog") highlightPC();
-  else if(dbgView==="data") buildDataView();
-  else if(dbgView==="sfr") buildSFRView();
-  else if(dbgView==="stack") buildStackView();
-  else if(dbgView==="watch") buildWatchView();
-}
-function buildStackView(){
-  const el=document.getElementById("dbgStack"); if(!el||!X) return;
-  if(typeof X.np_stack_depth!=="function"){ el.innerHTML='<div class="watchEmpty">Pila no disponible: recompilá el núcleo WASM (núcleo viejo embebido).</div>'; return; }
-  const depth=X.np_stack_depth();
-  let html=`<div class="stkHead">Pila de retorno (CALL/RETURN) · profundidad <b>${depth}</b>/8</div>`;
-  for(let i=7;i>=0;i--){
-    const used=i<depth, top=i===depth-1;
-    const v=used?"0x"+X.np_stack_at(i).toString(16).toUpperCase().padStart(3,"0"):"—";
-    html+=`<div class="stkRow${used?" used":""}${top?" top":""}"><span class="sl">${i}</span><span class="sv">${v}</span><span class="stag">${top?"◂ tope":""}</span></div>`;
-  }
-  el.innerHTML=html;
-}
 const SFRS = [
   ["W",-1],
   ["STATUS",0x03,"IRP RP1 RP0 TO PD Z DC C"],
@@ -971,27 +1066,23 @@ const SFRS = [
   ["TMR0",0x01],["PCL",0x02],["PCLATH",0x0A],["FSR",0x04],
   ["EEDATA",0x9A],["EEADR",0x9B],["EECON1",0x9C],
 ];
-function buildSFRView(){
-  if(!X) return;
-  document.getElementById("dbgSFR").innerHTML = SFRS.map(([name,addr,bits])=>{
-    const v = addr<0 ? X.np_w() : X.np_read_data(addr);
-    const hex="0x"+v.toString(16).toUpperCase().padStart(2,"0"), bin=v.toString(2).padStart(8,"0");
-    const bh = bits ? bits.split(" ").map((bn,i)=>`<span class="${(v>>(7-i))&1?"on":""}">${bn}</span>`).join("") : "";
-    return `<div class="sfrRow"><span class="sname">${name}</span><span class="sval" data-addr="${addr}">${hex}</span><span class="sbin">${bin}</span><span class="sbits">${bh}</span></div>`;
-  }).join("");
-}
-function buildDataView(){
-  if(!X) return;
-  const base=dbgBank*0x80, cells=[];
-  for(let off=0;off<0x80;off++){
-    if(off%16===0) cells.push(`<span class="dlabel">0x${(base+off).toString(16).toUpperCase().padStart(2,"0")}</span>`);
-    const v=X.np_read_data(base+off);
-    cells.push(`<span class="dcell${off<0x20?" sfr":""}" data-addr="${base+off}">${v.toString(16).toUpperCase().padStart(2,"0")}</span>`);
-  }
-  document.getElementById("dbgData").innerHTML=cells.join("");
-}
-let watchList=[]; try{ watchList=JSON.parse(localStorage.getItem("np_watch")||"[]"); }catch(e){}
+const VIEW_LABELS = { prog:"Programa", data:"Datos", sfr:"SFR", stack:"Pila", watch:"Vigilar" };
+const VIEW_ORDER  = ["prog","data","sfr","stack","watch"];
 const NAME_ADDR={}; SFRS.forEach(([n,a])=>{ if(a>=0) NAME_ADDR[n]=a; });
+
+// per-pane state {view, bank}, persisted so a student keeps their layout
+function loadPanes(){ try{ const p=JSON.parse(localStorage.getItem("np_panes")); if(p&&p.A&&p.B&&VIEW_LABELS[p.A.view]&&VIEW_LABELS[p.B.view]) return p; }catch(e){} return {A:{view:"prog",bank:0}, B:{view:"watch",bank:0}}; }
+let panes=loadPanes();
+function savePanes(){ try{ localStorage.setItem("np_panes", JSON.stringify(panes)); }catch(e){} }
+// is the second pane open? (desktop only; persisted) — students can close/reopen pane B
+let dbgSplit=true; try{ const s=localStorage.getItem("np_split"); if(s!=null) dbgSplit=(s==="1"); }catch(e){}
+const paneBody  =(id)=>document.querySelector(`.dbgPaneBody[data-pane="${id}"]`);
+const paneSelect=(id)=>document.querySelector(`.paneView[data-pane="${id}"]`);
+function setText(id,t){ const el=document.getElementById(id); if(el) el.textContent=t; }
+
+// watch list (shared by both panes)
+let watchList=[]; try{ watchList=JSON.parse(localStorage.getItem("np_watch")||"[]"); }catch(e){}
+function saveWatch(){ try{ localStorage.setItem("np_watch", JSON.stringify(watchList)); }catch(e){} }
 function resolveWatch(s){
   s=(s||"").trim(); if(!s) return null;
   const up=s.toUpperCase();
@@ -1001,70 +1092,189 @@ function resolveWatch(s){
   if(isNaN(addr)||addr>0x1FF) return null;
   return {label:"0x"+addr.toString(16).toUpperCase(), addr};
 }
-function saveWatch(){ try{ localStorage.setItem("np_watch", JSON.stringify(watchList)); }catch(e){} }
-function addWatch(){
-  const inp=document.getElementById("watchInput"); const w=resolveWatch(inp.value);
-  if(w && !watchList.some(x=>x.addr===w.addr)){ watchList.push(w); saveWatch(); }
-  inp.value=""; buildWatchView();
-}
-function buildWatchView(){
-  const el=document.getElementById("dbgWatch"); if(!el) return;
-  if(!watchList.length){ el.innerHTML='<div class="watchEmpty">Agregá una dirección (0x20) o un registro (PORTB) para seguir su valor en vivo.</div>'; return; }
-  el.innerHTML=watchList.map((w,i)=>{
-    const v=X?X.np_read_data(w.addr):0;
-    return `<div class="watchRow"><span class="wname">${esc(w.label)}</span><span class="waddr">0x${w.addr.toString(16).toUpperCase().padStart(2,"0")}</span><span class="wval">0x${v.toString(16).toUpperCase().padStart(2,"0")}</span><span class="wbin">${v.toString(2).padStart(8,"0")}</span><button class="wdel" data-i="${i}">×</button></div>`;
-  }).join("");
-  el.querySelectorAll(".wdel").forEach(b=>b.addEventListener("click",()=>{ watchList.splice(+b.dataset.i,1); saveWatch(); buildWatchView(); }));
-}
-function buildProgView(){
-  if(!X) return;
-  let last=0;
-  for(let a=0;a<2048;a++) if(X.np_prog_word(a)!==0x3FFF) last=a;
-  const n=Math.min(2048, Math.max(16, last+2)), rows=[];
+
+// ---- view builders: each returns the HTML for a pane body ----
+function progHTML(){
+  let last=0; for(let a=0;a<2048;a++) if(X.np_prog_word(a)!==0x3FFF) last=a;
+  const n=Math.min(2048, Math.max(16,last+2)); let rows="";
   for(let a=0;a<n;a++){
-    const word=X.np_prog_word(a);
-    const dn=X.np_disasm(word);
+    const word=X.np_prog_word(a), dn=X.np_disasm(word);
     const txt=new TextDecoder().decode(new Uint8Array(X.memory.buffer, X.np_disasm_buffer(), dn));
-    rows.push(`<div class="progRow" data-a="${a}"><span class="bp${breakSet.has(a)?" on":""}"></span><span class="pa">0x${a.toString(16).toUpperCase().padStart(3,"0")}</span><span class="pw">0x${word.toString(16).toUpperCase().padStart(4,"0")}</span><span class="pm">${txt}</span></div>`);
+    rows+=`<div class="progRow" data-a="${a}"><span class="bp${breakSet.has(a)?" on":""}"></span><span class="pa">0x${a.toString(16).toUpperCase().padStart(3,"0")}</span><span class="pw">0x${word.toString(16).toUpperCase().padStart(4,"0")}</span><span class="pm">${esc(txt)}</span></div>`;
   }
-  document.getElementById("dbgProg").innerHTML=rows.join("");
-  highlightPC();
+  return `<div class="dbgProg">${rows}</div>`;
 }
-function highlightPC(){
-  const prog=document.getElementById("dbgProg"); if(!prog||!X) return;
-  const cur=prog.querySelector(".progRow.pc"); if(cur) cur.classList.remove("pc");
-  const row=prog.querySelector(`.progRow[data-a="${X.np_pc()}"]`);
-  if(row){ row.classList.add("pc"); row.scrollIntoView({block:"nearest"}); }
+function highlightProgIn(host){
+  const cur=host.querySelector(".progRow.pc"); if(cur) cur.classList.remove("pc");
+  const row=host.querySelector(`.progRow[data-a="${X.np_pc()}"]`);
+  if(row){ row.classList.add("pc");
+    // keep the PC row visible by scrolling the pane body only — never scrollIntoView,
+    // which would scroll the whole page (it yanks the view down to the dock on mobile).
+    const hr=host.getBoundingClientRect(), rr=row.getBoundingClientRect();
+    if(rr.top < hr.top) host.scrollTop += (rr.top - hr.top) - 4;
+    else if(rr.bottom > hr.bottom) host.scrollTop += (rr.bottom - hr.bottom) + 4;
+  }
 }
-function snapBoard(){ if(!X) return; const pa=X.np_read_porta(), pb=X.np_read_portb(); for(const c of components){ if(c.reset)c.reset(); if(c.sample)c.sample(pa,pb); if(c.integrate)c.integrate(1); } }
-function stepN(n){
+function dataHTML(bank){
+  const base=bank*0x80; let cells="";
+  for(let off=0;off<0x80;off++){
+    if(off%16===0) cells+=`<span class="dlabel">0x${(base+off).toString(16).toUpperCase().padStart(2,"0")}</span>`;
+    const v=X.np_read_data(base+off);
+    cells+=`<span class="dcell${off<0x20?" sfr":""}" data-addr="${base+off}">${v.toString(16).toUpperCase().padStart(2,"0")}</span>`;
+  }
+  return `<div class="dataBankBar">Banco <button class="bankBtn${bank===0?" active":""}" data-bank="0">0</button><button class="bankBtn${bank===1?" active":""}" data-bank="1">1</button></div><div class="dbgData">${cells}</div>`;
+}
+function sfrHTML(){
+  return `<div class="dbgSFR">`+SFRS.map(([name,addr,bits])=>{
+    const v = addr<0 ? X.np_w() : X.np_read_data(addr);
+    const hex="0x"+v.toString(16).toUpperCase().padStart(2,"0"), bin=v.toString(2).padStart(8,"0");
+    const bh = bits ? bits.split(" ").map((bn,i)=>`<span class="${(v>>(7-i))&1?"on":""}">${bn}</span>`).join("") : "";
+    return `<div class="sfrRow"><span class="sname">${name}</span><span class="sval" data-addr="${addr}">${hex}</span><span class="sbin">${bin}</span><span class="sbits">${bh}</span></div>`;
+  }).join("")+`</div>`;
+}
+function stackHTML(){
+  if(typeof X.np_stack_depth!=="function") return `<div class="dbgStack"><div class="dbgEmpty">Pila no disponible: recompilá el núcleo WASM (núcleo viejo embebido).</div></div>`;
+  const depth=X.np_stack_depth(); let html=`<div class="stkHead">Pila de retorno (CALL/RETURN) · profundidad <b>${depth}</b>/8</div>`;
+  for(let i=7;i>=0;i--){ const used=i<depth, top=i===depth-1; const v=used?"0x"+X.np_stack_at(i).toString(16).toUpperCase().padStart(3,"0"):"—";
+    html+=`<div class="stkRow${used?" used":""}${top?" top":""}"><span class="sl">${i}</span><span class="sv">${v}</span><span class="stag">${top?"◂ tope":""}</span></div>`; }
+  return `<div class="dbgStack">${html}</div>`;
+}
+function watchHTML(){
+  let rows;
+  if(!watchList.length) rows=`<div class="dbgEmpty">Agregá una dirección (0x20) o un registro (PORTB) para seguir su valor en vivo.</div>`;
+  else rows=watchList.map((w,i)=>{ const v=X?X.np_read_data(w.addr):0;
+    return `<div class="watchRow"><span class="wname">${esc(w.label)}</span><span class="waddr">0x${w.addr.toString(16).toUpperCase().padStart(2,"0")}</span><span class="wval">0x${v.toString(16).toUpperCase().padStart(2,"0")}</span><span class="wbin">${v.toString(2).padStart(8,"0")}</span><button class="wdel" data-i="${i}" title="Quitar">×</button></div>`; }).join("");
+  return `<div class="watchBar"><input class="watchInput" type="text" placeholder="0x20 o PORTB" autocomplete="off" /><button class="watchAdd">Agregar</button></div><div class="dbgWatch">${rows}</div>`;
+}
+function updateWatchValues(host){
+  host.querySelectorAll(".watchRow").forEach((row,i)=>{ const w=watchList[i]; if(!w) return; const v=X?X.np_read_data(w.addr):0;
+    const wv=row.querySelector(".wval"), wb=row.querySelector(".wbin");
+    if(wv) wv.textContent="0x"+v.toString(16).toUpperCase().padStart(2,"0");
+    if(wb) wb.textContent=v.toString(2).padStart(8,"0"); });
+}
+
+// render one pane (full = rebuild markup; otherwise just refresh live values)
+function renderPane(id, full){
+  if(id==="B" && !dbgSplit) return;             // second pane closed → nothing to draw
+  const host=paneBody(id); if(!host||!X) return;
+  const v=panes[id].view;
+  if(v==="prog"){ if(full || !host.querySelector(".dbgProg")) host.innerHTML=progHTML(); highlightProgIn(host); }
+  else if(v==="data"){ host.innerHTML=dataHTML(panes[id].bank||0); }
+  else if(v==="sfr"){ host.innerHTML=sfrHTML(); }
+  else if(v==="stack"){ host.innerHTML=stackHTML(); }
+  else if(v==="watch"){ const inp=host.querySelector(".watchInput");
+    if(!full && inp && document.activeElement===inp) updateWatchValues(host);   // don't clobber a value being typed
+    else host.innerHTML=watchHTML(); }
+}
+function rebuildProg(){ renderPane("A",true); renderPane("B",true); }
+function refreshActiveView(){ renderPane("A",true); renderPane("B",true); }
+function refreshDebug(){
   if(!X) return;
-  setRunning(false);
-  for(let i=0;i<n;i++){ X.np_step(); if(breakSet.has(X.np_pc())) break; }
-  snapBoard(); refreshDebug();
+  const pc=X.np_pc(), w=X.np_w(), cyc=X.np_cycles(), st=X.np_read_data(0x03);
+  setText("dbgCycles", cyc.toLocaleString("es-AR"));
+  setText("dbgPC","0x"+pc.toString(16).toUpperCase().padStart(3,"0"));
+  setText("dbgW","0x"+w.toString(16).toUpperCase().padStart(2,"0"));
+  setText("dbgStatus","0x"+st.toString(16).toUpperCase().padStart(2,"0"));
+  const fl=document.getElementById("dbgFlags"); if(fl) fl.innerHTML=STATUS_BITS.map(([n,b])=>`<span class="${(st>>b)&1?"on":""}">${n}</span>`).join("");
+  renderPane("A",false); renderPane("B",false);
 }
+
+// pane view pickers
+function populatePaneSelects(){
+  ["A","B"].forEach(id=>{ const sel=paneSelect(id); if(!sel) return;
+    sel.innerHTML=VIEW_ORDER.map(v=>`<option value="${v}">${VIEW_LABELS[v]}</option>`).join("");
+    sel.value=panes[id].view;
+    sel.addEventListener("change",()=>{ panes[id].view=sel.value; savePanes(); renderPane(id,true); });
+  });
+}
+// open/close the second pane (desktop dual view); persisted so it stays as the student left it
+function setSplit(on){
+  dbgSplit=on;
+  const pe=document.getElementById("dbgPanes"); if(pe) pe.classList.toggle("single", !on);
+  try{ localStorage.setItem("np_split", on?"1":"0"); }catch(e){}
+  if(on) renderPane("B", true);
+}
+
+// stepping
+function snapBoard(){ if(!X) return; const pa=X.np_read_porta(), pb=X.np_read_portb(); for(const c of components){ if(c.reset)c.reset(); if(c.sample)c.sample(pa,pb); if(c.integrate)c.integrate(1); } }
+function stepN(n){ if(!X) return; setRunning(false); for(let i=0;i<n;i++){ X.np_step(); if(breakSet.has(X.np_pc())) break; } snapBoard(); refreshDebug(); }
 function stepOnce(){ stepN(1); }
-document.getElementById("dbgToggle").addEventListener("click", ()=>{
-  dbgOpen=!dbgOpen;
-  document.getElementById("dbgPanel").classList.toggle("hidden", !dbgOpen);
-  document.getElementById("dbgToggle").textContent = (dbgOpen?"▾":"▸")+" Depurador";
-  if(dbgOpen){ buildProgView(); refreshDebug(); }
-});
 document.getElementById("stepBtn").addEventListener("click", stepOnce);
-document.querySelectorAll(".dbgTab").forEach(t=>t.addEventListener("click", ()=>{
-  dbgView=t.dataset.view;
-  document.querySelectorAll(".dbgTab").forEach(x=>x.classList.toggle("active", x===t));
-  document.querySelectorAll(".dbgView").forEach(v=>v.classList.add("hidden"));
-  document.getElementById("view-"+dbgView).classList.remove("hidden");
-  if(dbgView==="prog") buildProgView();
-  refreshDebug();
-}));
-document.getElementById("bank0").addEventListener("click", ()=>{ dbgBank=0; document.getElementById("bank0").classList.add("active"); document.getElementById("bank1").classList.remove("active"); buildDataView(); });
-document.getElementById("bank1").addEventListener("click", ()=>{ dbgBank=1; document.getElementById("bank1").classList.add("active"); document.getElementById("bank0").classList.remove("active"); buildDataView(); });
-document.getElementById("watchAdd").addEventListener("click", addWatch);
-document.getElementById("watchInput").addEventListener("keydown", (e)=>{ if(e.key==="Enter") addWatch(); });
 document.getElementById("step10").addEventListener("click", ()=>stepN(10));
 document.getElementById("step100").addEventListener("click", ()=>stepN(100));
+
+// inline hex edit of a register/cell (pauses first so the live refresh can't clobber it)
+function editCell(span, cur, write){
+  setRunning(false);
+  const inp=document.createElement("input"); inp.className="cellEdit";
+  inp.value=cur.toString(16).toUpperCase().padStart(2,"0");
+  span.replaceWith(inp); inp.focus(); inp.select();
+  let done=false;
+  const commit=(save)=>{ if(done) return; done=true; if(save){ const v=parseInt(inp.value,16); if(!isNaN(v)) write(v & 0xFF); } refreshActiveView(); };
+  inp.addEventListener("keydown",(e)=>{ if(e.key==="Enter"){ e.preventDefault(); commit(true); } else if(e.key==="Escape") commit(false); });
+  inp.addEventListener("blur",()=>commit(true));
+}
+function addWatchFromPane(paneEl){
+  const inp=paneEl.querySelector(".watchInput"); if(!inp) return;
+  const w=resolveWatch(inp.value);
+  if(w && !watchList.some(x=>x.addr===w.addr)){ watchList.push(w); saveWatch(); }
+  renderPane("A",true); renderPane("B",true);
+  const again=paneEl.querySelector(".watchInput"); if(again) again.focus();
+}
+
+// delegated interactions inside the panes (breakpoints, bank switch, watch add/del, cell edits)
+const panesEl=document.getElementById("dbgPanes");
+panesEl.addEventListener("click",(e)=>{
+  if(!X) return;
+  const paneEl=e.target.closest(".dbgPane"), id=paneEl?paneEl.dataset.pane:null;
+  const prow=e.target.closest(".progRow");
+  if(prow){ const a=+prow.dataset.a;
+    if(breakSet.has(a)){ breakSet.delete(a); X.np_clear_break(a); } else { breakSet.add(a); X.np_set_break(a); }
+    document.querySelectorAll(`.progRow[data-a="${a}"] .bp`).forEach(b=>b.classList.toggle("on", breakSet.has(a))); return; }
+  const bank=e.target.closest(".bankBtn");
+  if(bank && id){ panes[id].bank=+bank.dataset.bank; savePanes(); renderPane(id,true); return; }
+  if(e.target.closest(".watchAdd") && paneEl){ addWatchFromPane(paneEl); return; }
+  const del=e.target.closest(".wdel");
+  if(del){ watchList.splice(+del.dataset.i,1); saveWatch(); renderPane("A",true); renderPane("B",true); return; }
+  const cell=e.target.closest(".dcell");
+  if(cell){ const addr=+cell.dataset.addr; editCell(cell, X.np_read_data(addr), (v)=>X.np_write_data(addr,v)); return; }
+  const sval=e.target.closest(".sval");
+  if(sval){ const addr=+sval.dataset.addr; editCell(sval, addr<0?X.np_w():X.np_read_data(addr), (v)=> addr<0?X.np_set_w(v):X.np_write_data(addr,v)); return; }
+});
+panesEl.addEventListener("keydown",(e)=>{ if(e.key==="Enter" && e.target.classList && e.target.classList.contains("watchInput")){ e.preventDefault(); const paneEl=e.target.closest(".dbgPane"); if(paneEl) addWatchFromPane(paneEl); } });
+
+// dock show/hide + width drag
+function setDock(open){
+  dbgOpen=open;
+  const layout=document.querySelector(".layout"); if(layout) layout.classList.toggle("no-dock", !open);
+  const t=document.getElementById("dockToggle"); if(t){ t.classList.toggle("active", open); t.setAttribute("aria-pressed", open?"true":"false"); }
+  try{ localStorage.setItem("np_dock", open?"1":"0"); }catch(e){}
+  if(open && X){ rebuildProg(); refreshDebug(); }
+}
+document.getElementById("dockToggle").addEventListener("click", ()=> setDock(!dbgOpen));
+document.getElementById("dockClose").addEventListener("click", ()=> setDock(false));
+(function dockResizeInit(){
+  const handle=document.getElementById("dockResize"), layout=document.querySelector(".layout");
+  if(!handle||!layout) return;
+  try{ const s=localStorage.getItem("np_dock_w"); if(s) layout.style.setProperty("--dock-w", clamp(parseInt(s)||452,320,720)+"px"); }catch(e){}
+  const getW=()=>parseInt(getComputedStyle(layout).getPropertyValue("--dock-w"))||452;
+  let startX=0, startW=452, dragging=false;
+  handle.addEventListener("pointerdown",(e)=>{ dragging=true; startX=e.clientX; startW=getW(); handle.classList.add("drag"); try{handle.setPointerCapture(e.pointerId);}catch(_){} e.preventDefault(); });
+  handle.addEventListener("pointermove",(e)=>{ if(!dragging) return; layout.style.setProperty("--dock-w", clamp(startW-(e.clientX-startX),320,720)+"px"); });
+  const end=()=>{ if(!dragging) return; dragging=false; handle.classList.remove("drag"); try{ localStorage.setItem("np_dock_w", getW()); }catch(e){} };
+  handle.addEventListener("pointerup", end); handle.addEventListener("pointercancel", end);
+})();
+
+// init panes + dock state (dock open by default on desktop, closed on small screens; saved choice wins)
+populatePaneSelects();
+document.getElementById("paneClose").addEventListener("click", ()=> setSplit(false));   // ✕ on pane B
+document.getElementById("paneSplit").addEventListener("click", ()=> setSplit(true));     // ⊞ on pane A (visible when single)
+setSplit(dbgSplit);
+(function initDock(){
+  const t=document.getElementById("dockToggle"); if(t) t.disabled=false;
+  let open; try{ const s=localStorage.getItem("np_dock"); open = (s==null) ? window.matchMedia("(min-width:1200px)").matches : s==="1"; }catch(e){ open=true; }
+  setDock(open);
+})();
 
 // ===== Editor de código (ASM → .hex): compila en el navegador y se carga como un .hex =====
 const ED_SAMPLE = [
@@ -1128,32 +1338,8 @@ document.getElementById("edBuild").addEventListener("click", ()=>{
   edStatus(ok ? ("✓ Compilado: "+res.words.size+" instrucciones — cargado y ejecutando en la placa.")
               : "✗ El núcleo rechazó el .hex generado.", ok?"ok":"err");
 });
-// click a program row to toggle a breakpoint (red dot); the run stops there.
-document.getElementById("dbgProg").addEventListener("click", (e)=>{
-  const row=e.target.closest(".progRow"); if(!row||!X) return;
-  const a=+row.dataset.a;
-  if(breakSet.has(a)){ breakSet.delete(a); X.np_clear_break(a); } else { breakSet.add(a); X.np_set_break(a); }
-  row.querySelector(".bp").classList.toggle("on", breakSet.has(a));
-});
-// inline hex edit of a register/cell (pauses first so the live refresh can't clobber it).
-function editCell(span, cur, write){
-  setRunning(false);
-  const inp=document.createElement("input"); inp.className="cellEdit";
-  inp.value=cur.toString(16).toUpperCase().padStart(2,"0");
-  span.replaceWith(inp); inp.focus(); inp.select();
-  let done=false;
-  const commit=(save)=>{ if(done) return; done=true; if(save){ const v=parseInt(inp.value,16); if(!isNaN(v)) write(v & 0xFF); } refreshActiveView(); };
-  inp.addEventListener("keydown",(e)=>{ if(e.key==="Enter"){ e.preventDefault(); commit(true); } else if(e.key==="Escape") commit(false); });
-  inp.addEventListener("blur",()=>commit(true));
-}
-document.getElementById("dbgData").addEventListener("click", (e)=>{
-  const cell=e.target.closest(".dcell"); if(!cell||!X) return;
-  const addr=+cell.dataset.addr; editCell(cell, X.np_read_data(addr), (v)=>X.np_write_data(addr,v));
-});
-document.getElementById("dbgSFR").addEventListener("click", (e)=>{
-  const val=e.target.closest(".sval"); if(!val||!X) return;
-  const addr=+val.dataset.addr; editCell(val, addr<0?X.np_w():X.np_read_data(addr), (v)=> addr<0?X.np_set_w(v):X.np_write_data(addr,v));
-});
+// (breakpoint toggling, cell/SFR inline edit and watch add/remove are handled by
+//  the delegated listeners on #dbgPanes in the Depurador section above.)
 // ===== clock: text input + slider shortcut (1-2-5 steps, 1 Hz … 8 MHz) =====
 const SPEEDS=[1,2,5,10,20,50,100,200,500,1e3,2e3,5e3,1e4,2e4,5e4,1e5,2e5,5e5,1e6,2e6,4e6,8e6];
 const clockRange=document.getElementById("clockRange"); clockRange.max=SPEEDS.length-1;
@@ -1191,9 +1377,54 @@ window.addEventListener("keydown",(e)=>{
   }
 });
 
-function canvasPos(e){ const r=canvas.getBoundingClientRect(); return [(e.clientX-r.left)*canvas.width/r.width,(e.clientY-r.top)*canvas.height/r.height]; }
-canvas.addEventListener("mousedown",(e)=>{ const [mx,my]=canvasPos(e); for(const c of components) if(c.hit&&c.hit(mx,my)) c.press(true); });
-window.addEventListener("mouseup", ()=>{ for(const c of components) if(c.press) c.press(false); });
+// ===== board view: zoom + pan + button press (pointer events for mouse & touch) =====
+function clamp(v,a,b){ return v<a?a:(v>b?b:v); }
+function boardMetrics(){ const r=canvas.getBoundingClientRect(); return { r, base:r.width/920, s:(r.width/920)*view.zoom }; }
+function screenToBoard(clientX,clientY){ const {r,s}=boardMetrics(); return [ (clientX-r.left-view.panX)/s, (clientY-r.top-view.panY)/s ]; }
+function clampPan(){ const {r}=boardMetrics(); const cw=r.width, ch=r.height, boardW=cw*view.zoom, boardH=ch*view.zoom;
+  view.panX=clamp(view.panX, Math.min(0,cw-boardW), 0);
+  view.panY=clamp(view.panY, Math.min(0,ch-boardH), 0); }
+function updateZoomLabel(){ const el=document.getElementById("zoomLabel"); if(el) el.textContent=Math.round(view.zoom*100)+"%"; }
+function setZoom(z, cx, cy){            // cx,cy = focal point (client coords); default = board centre
+  const {r,base}=boardMetrics();
+  if(cx==null){ cx=r.left+r.width/2; cy=r.top+r.height/2; }
+  const nz=clamp(z,1,6); if(Math.abs(nz-view.zoom)<1e-4){ clampPan(); updateZoomLabel(); return; }
+  const s0=base*view.zoom, s1=base*nz, bx=(cx-r.left-view.panX)/s0, by=(cy-r.top-view.panY)/s0;
+  view.zoom=nz; view.panX=(cx-r.left)-bx*s1; view.panY=(cy-r.top)-by*s1;
+  clampPan(); updateZoomLabel();
+}
+function zoomBy(f, cx, cy){ setZoom(view.zoom*f, cx, cy); }
+function resetView(){ view.zoom=1; view.panX=0; view.panY=0; updateZoomLabel(); }
+
+const pointers=new Map();   // pointerId -> {x,y}; tracked for pinch-zoom + pan
+let panning=false, panLast=null, pinchDist=0, pressedComp=null;
+function releasePresses(){ if(pressedComp&&pressedComp.press) pressedComp.press(false); pressedComp=null;
+  for(const c of components) if(c.press) c.press(false); }
+canvas.addEventListener("pointerdown",(e)=>{
+  if(canvas.setPointerCapture) try{ canvas.setPointerCapture(e.pointerId); }catch(_){}
+  pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(pointers.size===2){ panning=false; panLast=null; canvas.classList.remove("panning");
+    const p=[...pointers.values()]; pinchDist=Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y); releasePresses(); return; }
+  const [mx,my]=screenToBoard(e.clientX,e.clientY); pressedComp=null;
+  for(const c of components) if(c.hit&&c.hit(mx,my)){ pressedComp=c; c.press(true); break; }
+  if(!pressedComp){ panning=true; panLast={x:e.clientX,y:e.clientY}; canvas.classList.add("panning"); }
+});
+canvas.addEventListener("pointermove",(e)=>{
+  if(pointers.has(e.pointerId)) pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(pointers.size===2){ const p=[...pointers.values()], d=Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y);
+    if(pinchDist>0) zoomBy(d/pinchDist, (p[0].x+p[1].x)/2, (p[0].y+p[1].y)/2); pinchDist=d; return; }
+  if(panning&&panLast){ view.panX+=e.clientX-panLast.x; view.panY+=e.clientY-panLast.y; panLast={x:e.clientX,y:e.clientY}; clampPan(); }
+});
+function endPointer(e){ pointers.delete(e.pointerId); if(pointers.size<2) pinchDist=0;
+  if(pointers.size===0){ panning=false; panLast=null; canvas.classList.remove("panning"); releasePresses(); } }
+canvas.addEventListener("pointerup", endPointer);
+canvas.addEventListener("pointercancel", endPointer);
+canvas.addEventListener("wheel",(e)=>{ e.preventDefault(); zoomBy(e.deltaY<0?1.12:1/1.12, e.clientX, e.clientY); }, {passive:false});
+canvas.addEventListener("dblclick",(e)=>{ if(view.zoom>1.01) resetView(); else setZoom(2.2, e.clientX, e.clientY); });
+document.getElementById("zoomIn").addEventListener("click",()=>zoomBy(1.25));
+document.getElementById("zoomOut").addEventListener("click",()=>zoomBy(1/1.25));
+document.getElementById("zoomFit").addEventListener("click", resetView);
+window.addEventListener("resize", clampPan);
 
 // ===== theme toggle (dark / light, persisted) =====
 (function(){

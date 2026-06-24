@@ -7,6 +7,35 @@ classroom (codename *New Proteus*). **Shipped and live:**
 
 ## Session log (newest first) — update this at the end of each session
 
+- **2026-06-24 (UI revamp 2 — desktop/mobile usability)** — Reworked the runtime UI for legibility and
+  to let students see more at once (`runtime/index.html` only — **CSS + HTML + JS, no core/wasm change**;
+  the 82/83 tests + the embed are untouched, **no rebuild**). **(1) IDE-style layout.** The old top-to-bottom
+  flow (board centred, Depurador a collapsible panel stacked under it) became a 3-zone CSS-grid workspace:
+  **left controls rail · large board centre · resizable right-docked Depurador**, so the debugger is visible
+  *beside* the board. New app-bar **"Depurador" toggle** (show/hide, persisted `np_dock`) and a **drag handle**
+  to resize the dock (persisted `np_dock_w`, 320–720px). Responsive: ≤1200px the dock un-docks to a full-width
+  panel below the board; ≤920px everything stacks (rail cards wrap). **(2) Two-pane customizable debugger**
+  (the headline ask). On desktop the Depurador shows **two panes side by side, each with its own view picker**
+  (Programa / Datos / SFR / Pila / Vigilar) — a student can watch e.g. the program *and* a watch list / the
+  SFRs at the same time; per-pane choice + data bank persist (`np_panes`). The **second pane is closable** (✕ on
+  its header) and reopens via a **⊞ button** on the first pane (persisted, `np_split`) — the side-by-side view is
+  optional. Below 1200px it collapses to a single pane (dual view is desktop-only, by design). Rewrote the old single-tab view system: each view now renders
+  into a **pane-scoped** container, with **delegated** handlers on `#dbgPanes` for breakpoints, bank switch,
+  watch add/remove and inline cell/SFR hex edit — **all prior debugger features preserved** (breakpoints, Paso
+  ×1/×10/×100, live PC highlight, inline edit, watch persistence, the 8-level stack). **(3) Board zoom + pan.**
+  Scroll/pinch to zoom (about the cursor), drag to pan (clamped to the board), a floating **−/100%/+/Ajustar**
+  toolbar + double-click to fit. The canvas now draws through a **view transform on a hi-DPI backing store**
+  (`devicePixelRatio`), so it stays crisp at any zoom; **pointer events** unify mouse + touch and a press on a
+  component still beats panning; zoom resets on board load. **(4) Legibility.** Bolder/larger pin labels,
+  larger live pin-state squares, 7-seg now shows faint **ghost (unlit) segments** so the digit shape is always
+  readable plus brighter lit segments, and clearer buttons. **(5) Bug fixed:** the live PC highlight used
+  `scrollIntoView`, which scrolled the *whole page* — on mobile it yanked the view down to the dock every
+  frame; it now scrolls only inside the program pane. **Verified live in Chrome at 1440 / tablet / 390px:**
+  mux counter runs, two-pane Depurador live (Programa+Vigilar / +SFR / +Pila), breakpoints + step + inline
+  edit, wheel/button/drag zoom + pan + dock-resize + dock toggle, theme + clock + ASM editor intact,
+  single-pane + no page-jump on mobile, **zero console errors**. Pure runtime change → no wasm
+  rebuild/embed/verify-core needed. *Uncommitted.*
+
 - **2026-06-23 (editor: .asm open/save + example source)** — Editor (`runtime/index.html`) gains **Abrir
   .asm** / **Descargar .asm** (load a local `.asm` into the editor; save the editor to a `programa.asm`
   file via a Blob), and examples can now **carry their source**: a lab with an `asm` field populates the
