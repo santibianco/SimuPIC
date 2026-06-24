@@ -294,6 +294,9 @@
         <div class="edBar">
           <span class="edTitle">Escribí tu programa en assembler y compilalo a .hex — corre en la placa al instante.</span>
           <span class="edSpacer"></span>
+          <input id="edFile" type="file" accept=".asm,.inc,.txt" style="display:none" />
+          <button id="edOpen" class="btn">Abrir .asm</button>
+          <button id="edDownload" class="btn">Descargar .asm</button>
           <button id="edSample" class="btn">Cargar ejemplo</button>
           <button id="edBuild" class="btn btn-primary">Compilar y cargar ▸</button>
         </div>
@@ -360,6 +363,18 @@ const SEG_DIAGRAM = {
   components: [ { type: "sevenseg", pins: ["RB0","RB1","RB2","RB3","RB4","RB5","RB6"], common: null } ],
 };
 const BLINK_HEX = ":0A000000831686018312860A032886\n:00000001FF\n";
+const BLINK_ASM = [
+  "; Parpadeo — incrementa PORTB sin parar; RB0 es el bit que cambia más rápido.",
+  "    ORG     0",
+  "    bsf     STATUS,RP0    ; banco 1",
+  "    clrf    TRISB         ; PORTB como salida",
+  "    bcf     STATUS,RP0    ; banco 0",
+  "loop",
+  "    incf    PORTB,f       ; PORTB = PORTB + 1",
+  "    goto    loop",
+  "    END",
+  ""
+].join("\n");
 const SEG_COUNTER_HEX =
   ":10000000831686018312A00120080E208600192085\n" +
   ":10001000A00A0A3020020319A001042882073F34F5\n" +
@@ -367,6 +382,55 @@ const SEG_COUNTER_HEX =
   ":100030006F34FF30A100FF30A200A20B1D28A10BDE\n" +
   ":040040001B28080071\n" +
   ":00000001FF\n";
+const SEG_COUNTER_ASM = `; Contador de 7 segmentos — cuenta 0..9 en un display conectado a PORTB (RB0..RB6).
+CONT    EQU     0x20            ; dígito actual (0..9)
+D1      EQU     0x21            ; contadores de la demora
+D2      EQU     0x22
+
+        ORG     0
+        bsf     STATUS,RP0      ; banco 1
+        clrf    TRISB           ; PORTB como salida (segmentos)
+        bcf     STATUS,RP0      ; banco 0
+        clrf    CONT
+loop
+        movf    CONT,w
+        call    tabla           ; W = patrón de 7 segmentos del dígito
+        movwf   PORTB           ; mostrarlo
+        call    demora
+        incf    CONT,f
+        movlw   .10
+        subwf   CONT,w          ; ¿CONT == 10?
+        btfsc   STATUS,Z
+        clrf    CONT            ; sí → volver a 0
+        goto    loop
+
+tabla                           ; tabla 7 segmentos (cátodo común), dígitos 0..9
+        addwf   PCL,f
+        retlw   0x3F
+        retlw   0x06
+        retlw   0x5B
+        retlw   0x4F
+        retlw   0x66
+        retlw   0x6D
+        retlw   0x7D
+        retlw   0x07
+        retlw   0x7F
+        retlw   0x6F
+
+demora                          ; doble lazo de espera
+        movlw   0xFF
+        movwf   D1
+demora1
+        movlw   0xFF
+        movwf   D2
+demora2
+        decfsz  D2,f
+        goto    demora2
+        decfsz  D1,f
+        goto    demora1
+        return
+        END
+`;
 const LAB_DIAGRAM = { name:"Two-digit counter", components:[
   {type:"led", pin:"RB7", label:"Status"},
   {type:"button", pin:"RA4", activeLow:true, label:"SW1"},
@@ -383,6 +447,85 @@ const MUX_COUNTER_HEX =
   ":1000600006345B344F3466346D347D3407347F346A\n" +
   ":0C0070006F344030A400A40B3B280800B3\n" +
   ":00000001FF\n";
+const MUX_COUNTER_ASM = `; Contador multiplexado de 2 dígitos — unidades (display en RA0) y decenas (RA1),
+; segmentos compartidos en PORTB. Se multiplexa rápido para que se vean ambos.
+UNI     EQU     0x20            ; dígito de unidades (0..9)
+DEC     EQU     0x21            ; dígito de decenas (0..9)
+MUXCNT  EQU     0x22            ; contador de refresco del multiplexado
+DIVCNT  EQU     0x23            ; divisor: el conteo avanza cada 3*256 refrescos
+DLY     EQU     0x24            ; demora de encendido de cada dígito
+
+        ORG     0
+        bsf     STATUS,RP0      ; banco 1
+        clrf    TRISB           ; PORTB (segmentos) como salida
+        movlw   0xFC
+        movwf   TRISA           ; RA0/RA1 como salida (común de cada display)
+        bcf     STATUS,RP0      ; banco 0
+        movlw   0x07
+        movwf   CMCON           ; comparadores apagados → PORTA digital
+        clrf    PORTA
+        clrf    PORTB
+        clrf    UNI
+        clrf    DEC
+        clrf    MUXCNT
+        clrf    DIVCNT
+loop
+        clrf    PORTA           ; apagar displays
+        movf    UNI,w
+        call    tabla
+        movwf   PORTB           ; segmentos de las unidades
+        bsf     PORTA,0         ; encender display 0
+        call    demora
+        clrf    PORTA
+        movf    DEC,w
+        call    tabla
+        movwf   PORTB           ; segmentos de las decenas
+        bsf     PORTA,1         ; encender display 1
+        call    demora
+        incfsz  MUXCNT,f        ; ¿pasaron 256 refrescos?
+        goto    loop
+        incf    DIVCNT,f
+        movlw   0x03
+        subwf   DIVCNT,w
+        btfss   STATUS,Z        ; ¿DIVCNT == 3?
+        goto    loop
+        clrf    DIVCNT          ; sí → avanzar el conteo
+        incf    UNI,f
+        movlw   .10
+        subwf   UNI,w
+        btfss   STATUS,Z        ; ¿UNI == 10?
+        goto    loop
+        clrf    UNI
+        incf    DEC,f
+        movlw   .10
+        subwf   DEC,w
+        btfss   STATUS,Z        ; ¿DEC == 10?
+        goto    loop
+        clrf    DEC
+        goto    loop
+
+tabla                           ; 7 segmentos, dígitos 0..9
+        addwf   PCL,f
+        retlw   0x3F
+        retlw   0x06
+        retlw   0x5B
+        retlw   0x4F
+        retlw   0x66
+        retlw   0x6D
+        retlw   0x7D
+        retlw   0x07
+        retlw   0x7F
+        retlw   0x6F
+
+demora                          ; demora corta (tiempo de encendido del dígito)
+        movlw   0x40
+        movwf   DLY
+demora1
+        decfsz  DLY,f
+        goto    demora1
+        return
+        END
+`;
 const EEPROM_COUNTER_HEX =
   ":10000000831686019B011C141A08F00083120A3023\n" +
   ":1000100070020318F001F00A0A3070020319F001AF\n" +
@@ -391,6 +534,60 @@ const EEPROM_COUNTER_HEX =
   ":100040003F3406345B344F3466346D347D340734CA\n" +
   ":040050007F346F3456\n" +
   ":00000001FF\n";
+const EEPROM_COUNTER_ASM = `; Contador en EEPROM — el conteo sobrevive al reinicio (se guarda en la EEPROM
+; interna). En cada arranque lee el último valor, lo incrementa y lo vuelve a guardar.
+CONT    EQU     0x70            ; RAM común (visible en todos los bancos)
+
+        ORG     0
+        bsf     STATUS,RP0      ; banco 1
+        clrf    TRISB           ; PORTB como salida (7 segmentos)
+        ; --- leer el último valor guardado (EEPROM dirección 0) ---
+        clrf    EEADR
+        bsf     EECON1,RD       ; iniciar lectura
+        movf    EEDATA,w
+        movwf   CONT            ; CONT = valor leído
+        bcf     STATUS,RP0      ; banco 0
+        movlw   .10
+        subwf   CONT,w
+        btfsc   STATUS,C        ; ¿CONT >= 10? (EEPROM sin usar = 0xFF)
+        clrf    CONT            ; sí → arrancar de 0
+        incf    CONT,f          ; CONT = CONT + 1
+        movlw   .10
+        subwf   CONT,w
+        btfsc   STATUS,Z        ; ¿CONT == 10?
+        clrf    CONT            ; sí → volver a 0
+        ; --- guardar el nuevo valor (secuencia de desbloqueo) ---
+        bsf     STATUS,RP0      ; banco 1
+        clrf    EEADR
+        movf    CONT,w
+        movwf   EEDATA
+        bsf     EECON1,WREN     ; habilitar escritura
+        movlw   0x55
+        movwf   EECON2
+        movlw   0xAA
+        movwf   EECON2
+        bsf     EECON1,WR       ; iniciar escritura
+        bcf     STATUS,RP0      ; banco 0
+mostrar                         ; mostrar el conteo para siempre
+        movf    CONT,w
+        call    tabla
+        movwf   PORTB
+        goto    mostrar
+
+tabla                           ; 7 segmentos, dígitos 0..9
+        addwf   PCL,f
+        retlw   0x3F
+        retlw   0x06
+        retlw   0x5B
+        retlw   0x4F
+        retlw   0x66
+        retlw   0x6D
+        retlw   0x7D
+        retlw   0x07
+        retlw   0x7F
+        retlw   0x6F
+        END
+`;
 
 // ===== PIC16F628A DIP-18 pinout (pin 1 top-left, down the left, up the right) =====
 const LEFT = ["RA2","RA3","RA4","RA5","VSS","RB0","RB1","RB2","RB3"];      // pins 1..9
@@ -685,10 +882,10 @@ document.getElementById("hexFile").addEventListener("change", async (e)=>{ const
 function setClock(str){ document.getElementById("clock").value=str; applyClock(); }
 // ===== boards / labs (demos are built in; instructor boards come from labs.js) =====
 const BUILTIN_LABS = [
-  { name:"Ejemplo · Parpadeo (LED en RB0)",                   group:"Ejemplos", diagram:LED_DIAGRAM, hex:BLINK_HEX,          clock:"1 kHz" },
-  { name:"Ejemplo · Contador de 7 segmentos",                 group:"Ejemplos", diagram:SEG_DIAGRAM, hex:SEG_COUNTER_HEX,    clock:"4 MHz" },
-  { name:"Ejemplo · Contador multiplexado de 2 dígitos",      group:"Ejemplos", diagram:LAB_DIAGRAM, hex:MUX_COUNTER_HEX,    clock:"4 MHz" },
-  { name:"Ejemplo · Contador EEPROM (sobrevive al reinicio)",  group:"Ejemplos", diagram:SEG_DIAGRAM, hex:EEPROM_COUNTER_HEX, clock:"4 MHz" },
+  { name:"Ejemplo · Parpadeo (LED en RB0)",                   group:"Ejemplos", diagram:LED_DIAGRAM, hex:BLINK_HEX, asm:BLINK_ASM,          clock:"1 kHz" },
+  { name:"Ejemplo · Contador de 7 segmentos",                 group:"Ejemplos", diagram:SEG_DIAGRAM, hex:SEG_COUNTER_HEX, asm:SEG_COUNTER_ASM,    clock:"4 MHz" },
+  { name:"Ejemplo · Contador multiplexado de 2 dígitos",      group:"Ejemplos", diagram:LAB_DIAGRAM, hex:MUX_COUNTER_HEX, asm:MUX_COUNTER_ASM,    clock:"4 MHz" },
+  { name:"Ejemplo · Contador EEPROM (sobrevive al reinicio)",  group:"Ejemplos", diagram:SEG_DIAGRAM, hex:EEPROM_COUNTER_HEX, asm:EEPROM_COUNTER_ASM, clock:"4 MHz" },
 ];
 // labs.js may set window.NP_LABS to authoring-tool exports ({name, group?, components})
 // or full lab objects ({name, group?, diagram, hex?, clock?}). `group` is the dropdown
@@ -713,6 +910,9 @@ document.getElementById("labSelect").addEventListener("change", (e)=>{
   const lab=LABS[+v];
   setClock(lab.clock||"4 MHz");
   setDiagram(lab.diagram);
+  if(lab.asm){ edSrcEl.value=lab.asm; edSave(); edOpen=true;
+    document.getElementById("edPanel").classList.remove("hidden");
+    document.getElementById("edToggle").textContent="▾ Editor de código (ASM)"; }
   if(lab.hex){
     afterHex(loadHex(lab.hex), lab.name);
     if(/eeprom/i.test(lab.name)) setStatus("Cargado "+lab.name+" ✓ — apretá Detener (■) para cortar la energía y volvé a Ejecutar; el conteo se mantiene.","ok");
@@ -910,6 +1110,17 @@ document.getElementById("edToggle").addEventListener("click", ()=>{
 });
 document.getElementById("edSample").addEventListener("click", ()=>{
   edSrcEl.value=ED_SAMPLE; edSave(); edStatus("Ejemplo cargado en el editor.",""); edSrcEl.focus(); });
+document.getElementById("edDownload").addEventListener("click", ()=>{
+  const blob=new Blob([edSrcEl.value], {type:"text/plain;charset=utf-8"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob);
+  a.download="programa.asm"; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 1500); });
+document.getElementById("edOpen").addEventListener("click", ()=>document.getElementById("edFile").click());
+document.getElementById("edFile").addEventListener("change", async (e)=>{
+  const f=e.target.files[0]; if(!f) return;
+  try{ edSrcEl.value=await f.text(); edSave(); edStatus("Cargado “"+f.name+"” en el editor.",""); }
+  catch(err){ edStatus("No se pudo leer el archivo.","err"); }
+  e.target.value=""; });
 document.getElementById("edBuild").addEventListener("click", ()=>{
   if(!window.NP_ASM){ edStatus("No se pudo cargar el ensamblador (asm.js).","err"); return; }
   if(!X){ edStatus("El núcleo todavía no cargó. Esperá un momento.","err"); return; }

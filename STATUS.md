@@ -7,6 +7,19 @@ classroom (codename *New Proteus*). **Shipped and live:**
 
 ## Session log (newest first) — update this at the end of each session
 
+- **2026-06-23 (editor: .asm open/save + example source)** — Editor (`runtime/index.html`) gains **Abrir
+  .asm** / **Descargar .asm** (load a local `.asm` into the editor; save the editor to a `programa.asm`
+  file via a Blob), and examples can now **carry their source**: a lab with an `asm` field populates the
+  editor and opens it when selected, so students see the code behind a demo, not just the hex (loading
+  still goes through the existing `hex`, so behaviour is unchanged). Wired the mechanism + attached a
+  **verified, readable, commented `.asm` to all four built-in demos** (Parpadeo, 7-seg counter, 2-digit
+  mux counter, EEPROM counter). Each was reconstructed from its hardcoded hex with a small PIC14
+  disassembler, then hand-cleaned (labels, SFR names, Spanish comments) and confirmed to **re-assemble
+  byte-identical** to the original hex — so selecting a demo shows faithful source in the editor that
+  round-trips back to the same program. Loading still runs the hex; the `.asm` is editor source. The
+  reconstructed sources live as `*_ASM` consts next to the `*_HEX` ones in `runtime/index.html`.
+  *Uncommitted.*
+
 - **2026-06-23 (board: button-on-output warning)** — New 4th pin-square colour on the chip: **amber =
   a button is wired to a pin the firmware configured as an OUTPUT and it's pressed** — surfaces a
   common beginner mistake (forgetting the button pin needs to stay an input / wrong TRIS) instead of
