@@ -50,7 +50,13 @@ classroom (codename *New Proteus*). **Shipped and live:**
   Also, the Depurador navbar button now uses a **bug icon** (standard debugger symbol). And on mobile (≤920px)
   the controls reflow **top→down: Placa · Archivos · board · Simulación · status** — done with `.rail{display:contents}`
   so the rail's cards become direct grid items and `grid-template-areas` orders them around the board (desktop rail
-  layout unchanged). *Uncommitted.*
+  layout unchanged). **Compacted the Simulación card** (helps mobile most): the stopwatch now sits inline with the
+  ▶/■ transport (`.sim-row`) and the Hz value sits on the *Reloj* label line (`.clock-line`), removing two stacked
+  rows; card ~197px on desktop, shorter on mobile. Added a **"Limpiar" button** to the ASM editor toolbar
+  (`#edClear`) that wipes the editor (with a confirm guard) — saves tediously deleting everything by hand on
+  mobile; clears the textarea + saved `np_src` and refocuses. The editor toolbar's secondary actions are now
+  **icon-only** (`.ebtn`): Abrir = folder, Descargar = download, Limpiar = trash (with tooltips/aria-labels);
+  the primary **Compilar y cargar** keeps its text label. *Uncommitted.*
 
 - **2026-06-23 (editor: .asm open/save + example source)** — Editor (`runtime/index.html`) gains **Abrir
   .asm** / **Descargar .asm** (load a local `.asm` into the editor; save the editor to a `programa.asm`
