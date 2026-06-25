@@ -7,6 +7,13 @@ classroom (codename *New Proteus*). **Shipped and live:**
 
 ## Session log (newest first) — update this at the end of each session
 
+- **2026-06-25 (clear the ASM editor when an unrelated .hex loads)** — `runtime/index.html` only. Loading a
+  `.hex` that isn't from the editor now **empties the ASM editor** so stale code can't be mistaken for the loaded
+  program (a brief note explains it). New `clearEditorSource()` is called from the **file-load** handler and the
+  **drag-drop** handler (on success) and when a **Placa example has a `.hex` but no source**. It is *not* called by
+  the editor's own **Compilar y cargar** (the source is the program) nor by **demos that carry their `.asm`** (those
+  still populate the editor on purpose). Verified all three paths live + zero console errors. *Uncommitted.*
+
 - **2026-06-25 (.hex load → navbar; dropped the Archivos card)** — `runtime/index.html` only, no core change.
   The **"Cargar programa (.hex)"** button moved out of the rail's *Archivos* card and into the **navbar** as a
   labelled icon button (`#loadHexBtn`, upload icon + "Cargar .hex"); on phones (≤640px) it's **icon-only with a

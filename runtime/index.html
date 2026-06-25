@@ -1054,7 +1054,7 @@ document.getElementById("wasmFile").addEventListener("change", async (e)=>{
   try{ await instantiate(await f.arrayBuffer()); coreReady(); setStatus("Núcleo cargado ✓ — elegí una placa o cargá un .hex.","ok"); }
   catch(err){ setStatus("Error al cargar el WASM: "+err,"err"); }
 });
-document.getElementById("hexFile").addEventListener("change", async (e)=>{ const f=e.target.files[0]; if(!f||!X) return; afterHex(loadHex(await f.text()),f.name); });
+document.getElementById("hexFile").addEventListener("change", async (e)=>{ const f=e.target.files[0]; if(!f||!X) return; const ok=loadHex(await f.text()); afterHex(ok,f.name); if(ok) clearEditorSource(); });
 // Boards are set up by the teacher (via labs.js / the authoring tool), not loaded
 // ad-hoc by students — so there is no diagram upload here, only the "Placa" dropdown.
 function setClock(str){ document.getElementById("clock").value=str; applyClock(); }
@@ -1089,6 +1089,7 @@ document.getElementById("labSelect").addEventListener("change", (e)=>{
   setClock(lab.clock||"4 MHz");
   setDiagram(lab.diagram);
   if(lab.asm){ edSrcEl.value=lab.asm; edSave(); showEditor(true); }
+  else if(lab.hex){ clearEditorSource(); }   // example with a .hex but no source → don't show unrelated code
   if(lab.hex){
     afterHex(loadHex(lab.hex), lab.name);
     if(/eeprom/i.test(lab.name)) setStatus("Cargado "+lab.name+" ✓ — apretá Detener (■) para cortar la energía y volvé a Ejecutar; el conteo se mantiene.","ok");
@@ -1380,6 +1381,14 @@ try{ const saved=localStorage.getItem("np_src"); if(saved!=null) edSrcEl.value=s
 if(!edSrcEl.value.trim()) edSrcEl.value=ED_SAMPLE;
 function edSave(){ try{ localStorage.setItem("np_src", edSrcEl.value); }catch(e){} }
 function edStatus(msg,cls){ edStatusEl.textContent=msg; edStatusEl.className="edStatus "+(cls||""); }
+// When an unrelated .hex is loaded (file button / drag-drop / an example board without source),
+// wipe the editor so its stale code can't be mistaken for the loaded program. The editor's own
+// "Compilar y cargar" and demos that carry their .asm keep their source (they don't call this).
+function clearEditorSource(){
+  if(!edSrcEl.value) return;
+  edSrcEl.value=""; edSave();
+  edStatus("Se cargó un .hex — el editor se vació (no corresponde a ese programa).","");
+}
 edSrcEl.addEventListener("input", edSave);
 edSrcEl.addEventListener("keydown",(e)=>{ if(e.key==="Tab"){ e.preventDefault();
   const s=edSrcEl.selectionStart, en=edSrcEl.selectionEnd;
@@ -1441,7 +1450,7 @@ stageEl.addEventListener("drop", async (e)=>{ e.preventDefault(); stageEl.classL
   const f=e.dataTransfer&&e.dataTransfer.files[0]; if(!f) return;
   if(!X){ setStatus("Cargá el núcleo primero.","err"); return; }
   if(!/\.hex$/i.test(f.name)){ setStatus("Arrastrá un archivo .hex.","err"); return; }
-  afterHex(loadHex(await f.text()), f.name); });
+  const ok=loadHex(await f.text()); afterHex(ok, f.name); if(ok) clearEditorSource(); });
 
 // ===== keyboard: space toggles play / pause =====
 window.addEventListener("keydown",(e)=>{
