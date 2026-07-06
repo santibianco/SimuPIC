@@ -7,6 +7,31 @@ classroom (codename *New Proteus*). **Shipped and live:**
 
 ## Session log (newest first) — update this at the end of each session
 
+- **2026-07-05 (buttons → schematic push-buttons with a 0/1 rail + live badge)** — Redrew the board
+  buttons (`runtime/index.html`: canvas `drawButton` + the `build()` button branch; **no core/WASM change**)
+  from the plain dark rounded box into a **schematic momentary push-button** that reads like a real circuit,
+  so a student can see what a press does. Each button now shows: a movable **contact bar that drops and
+  closes** onto two terminals when pressed; an outboard **rail symbol — GND (⏚) means a press drives 0,
+  +V means a press drives 1**; and an actuator **cap that doubles as a live badge** of the level on the pin
+  (**blue 0 / red 1**, matching the chip's pin-state squares), which **flips the instant you press**. The
+  bar lights in the level colour when closed. Orientation follows the pin side (`dir`): the pin lead points
+  toward the chip, the rail sits outboard. The pin name is now **always** drawn below the glyph (with any
+  custom label as `LABEL · PIN`); the box grew 44→48px tall (press/hit behaviour unchanged). Colours are the
+  same red `#f0594e` (1) / blue `#3f7fe0` (0) used by the pin squares. **Verified live in Chrome:** active-low
+  (GND, idle 1 → press 0) and active-high (+V, idle 0 → press 1), on both left (RA*) and right (RB*) pins,
+  released + pressed (bar closes + badge flips), and a real click still registers the press through the hit
+  box; zero console errors. Pure runtime change → no wasm rebuild/embed/verify-core. *Uncommitted.*
+
+- **2026-07-05 (navbar button sizing fix)** — The **"Cargar .hex"** navbar button rendered larger than the
+  toggles next to it. Cause: `.barbtn` set `font:600 13px inherit`, which is **invalid CSS** — the `inherit`
+  keyword can't appear inside the `font` shorthand, so the whole declaration was dropped. That left the
+  `<button>` toggles (Código/Depurador) on the UA default (~13.3px/400) but the `<label>` file buttons
+  (`#loadHexBtn`, `#wasmWrap`) on the inherited page font (**16px**) — hence the mismatch. Replaced it with
+  valid separate properties `font-family:inherit; font-size:13px; font-weight:600;` so the whole bar is
+  uniform (13px, semibold — the size/weight the shorthand had always intended). `runtime/index.html` CSS
+  only, no core change. Verified live: `#loadHexBtn`, `#toggleEditor`, `#toggleDebug` all compute to
+  13px/600. *Uncommitted.*
+
 - **2026-07-05 (ASM editor — line numbers + syntax highlighting)** — The **Código (ASM)** editor now
   has a **line-number gutter** and **full MPASM syntax highlighting**. **New `runtime/editor.js`** — a
   self-contained, dependency-free, same-origin module (CSP-safe under `script-src 'self'`, offline via the

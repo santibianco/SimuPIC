@@ -269,7 +269,7 @@
 
   /* ===== app-bar labelled button (debugger toggle) ===== */
   .barbtn{ display:inline-flex; align-items:center; gap:7px; height:38px; padding:0 13px; border-radius:11px;
-    background:var(--surface-2); border:1px solid var(--border); color:var(--text-dim); font:600 13px inherit; font-family:inherit; cursor:pointer;
+    background:var(--surface-2); border:1px solid var(--border); color:var(--text-dim); font-family:inherit; font-size:13px; font-weight:600; cursor:pointer;
     transition:background .12s, color .12s, border-color .12s; }
   .barbtn:hover{ background:var(--surface-3); color:var(--text); }
   .barbtn.active{ background:var(--accent-soft); color:var(--accent); border-color:transparent; }
@@ -853,15 +853,15 @@ function build(diagram){
     }
     if(c.type==="button"){
       const p=PIN[c.pin]||{x:CHIP.x,y:CHIP.y}; const dir=p.side==="R"?1:-1;
-      const bw=72, bh=44, pos={x:p.x+dir*84-(dir<0?bw:0), y:p.y-bh/2};
+      const bw=72, bh=48, pos={x:p.x+dir*84-(dir<0?bw:0), y:p.y-bh/2};
       buttonPins.add(c.pin);
-      if(c.label) wiring.labels.push({x:pos.x+bw/2, y:pos.y+bh+13, text:c.pin, kind:"pin"});
+      wiring.labels.push({x:pos.x+bw/2, y:pos.y+bh+13, text:c.label?`${c.label} · ${c.pin}`:c.pin, kind:"pin"});
       return {pressed:false,pin:c.pin,reset(){},sample(){},clear(){this.pressed=false;},
         idle(){ const pi=pinIndex(c.pin); if(X&&pi>=0) X.np_set_pin(pi, c.activeLow?1:0); },
         press(v){ this.pressed=v; const pi=pinIndex(c.pin); if(X&&pi>=0){ X.np_set_pin(pi, (v?!c.activeLow:c.activeLow)?1:0);
           if(v && !((X.np_read_data(pi<8?0x85:0x86)>>(pi&7))&1)) setStatus("⚠ "+c.pin+": hay un botón pero el pin está configurado como salida","err"); } },
         hit(mx,my){ return mx>=pos.x&&mx<=pos.x+bw&&my>=pos.y&&my<=pos.y+bh; },
-        drawBody(ctx){ drawButton(ctx,pos.x,pos.y,this.pressed,c.label||c.pin); } };
+        drawBody(ctx){ drawButton(ctx,pos.x,pos.y,this.pressed,c.activeLow,dir); } };
     }
     return {reset(){},sample(){},drawBody(){}};
   });
@@ -999,14 +999,58 @@ function drawSeven(ctx,x,y,b,W,H){
     const r=s[i]; ctx.fillRect(r[0],r[1],r[2],r[3]); ctx.shadowBlur=0; }
   ctx.restore();
 }
-function drawButton(ctx,x,y,pressed,label){
-  ctx.save();
-  roundRect(ctx,x,y,72,44,10);
-  ctx.fillStyle=pressed?"#2ea043":"#262d36"; ctx.fill();
-  ctx.lineWidth=2; ctx.strokeStyle=pressed?"#48d869":"#3a424d"; ctx.stroke();
-  if(!pressed){ roundRect(ctx,x+5,y+5,62,15,7); ctx.fillStyle="rgba(255,255,255,0.05)"; ctx.fill(); }  // subtle cap highlight
-  ctx.fillStyle=pressed?"#052810":"#e6edf3"; ctx.font="bold 12.5px ui-monospace, monospace"; ctx.textAlign="center"; ctx.textBaseline="middle";
-  ctx.fillText(label,x+36,y+22); ctx.restore();
+// Schematic momentary push-button. It reads like a real circuit so students can see what a
+// press does: the pin lead runs to two contacts bridged by a movable bar that DROPS and closes
+// when pressed; the outboard rail symbol tells you what a press drives — GND (⏚) → 0, +V → 1 —
+// and the actuator cap doubles as a live badge showing the level on the pin (blue 0 / red 1),
+// which flips the moment you press. `dir` (+1 right pin, -1 left pin) orients pin-side vs rail-side.
+function drawButton(ctx,x,y,pressed,activeLow,dir){
+  const w=72, step=dir>0?1:-1, inX=dir>0?x:x+w, X0=d=>inX+step*d;
+  const yc=y+34, t1x=X0(20), t2x=X0(46), railx=X0(60), cx=X0(33), tipY=y+26;
+  const drop=pressed?8:0, barY=y+18+drop;
+  const idleLevel=activeLow?1:0, level=pressed?1-idleLevel:idleLevel;
+  const lvlCol=level?"#f0594e":"#3f7fe0", wire="#9fb4c9", node="#c9d6e3";
+  ctx.save(); ctx.lineCap="round"; ctx.lineJoin="round";
+  // pin lead + rail lead (horizontal), and the contact leads up to the switch tips
+  ctx.strokeStyle=wire; ctx.lineWidth=2; ctx.beginPath();
+  ctx.moveTo(inX,yc); ctx.lineTo(t1x,yc);
+  ctx.moveTo(t2x,yc); ctx.lineTo(railx,yc);
+  ctx.moveTo(t1x,yc); ctx.lineTo(t1x,tipY);
+  ctx.moveTo(t2x,yc); ctx.lineTo(t2x,tipY);
+  ctx.stroke();
+  // connection nodes (pin end + the two switch terminals)
+  ctx.fillStyle=node;
+  [[inX,yc,2.4],[t1x,yc,3],[t2x,yc,3]].forEach(([px,py,r])=>{ ctx.beginPath(); ctx.arc(px,py,r,0,Math.PI*2); ctx.fill(); });
+  // movable contact bar — bridges the tips (closed) when pressed, lit in the level colour
+  ctx.strokeStyle=pressed?lvlCol:"#8a99aa"; ctx.lineWidth=3;
+  ctx.beginPath(); ctx.moveTo(cx-13,barY); ctx.lineTo(cx+13,barY); ctx.stroke();
+  // plunger stem
+  ctx.strokeStyle="#8a99aa"; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.moveTo(cx,barY); ctx.lineTo(cx,y+13+drop); ctx.stroke();
+  // actuator cap = live 0/1 badge (colour = current driven level; drops with the press)
+  const capY=y-2+drop, capW=24, capH=15;
+  roundRect(ctx,cx-capW/2,capY,capW,capH,5); ctx.fillStyle=lvlCol; ctx.fill();
+  ctx.lineWidth=1.5; ctx.strokeStyle="rgba(255,255,255,.4)"; ctx.stroke();
+  ctx.fillStyle="#fff"; ctx.font="bold 11px ui-monospace, monospace"; ctx.textAlign="center"; ctx.textBaseline="middle";
+  ctx.fillText(String(level), cx, capY+capH/2+0.5);
+  // rail symbol: GND (a press drives 0) or +V (a press drives 1)
+  ctx.strokeStyle=wire; ctx.lineWidth=2;
+  if(activeLow){
+    ctx.beginPath();
+    ctx.moveTo(railx,yc); ctx.lineTo(railx,yc+5);
+    ctx.moveTo(railx-8,yc+5); ctx.lineTo(railx+8,yc+5);
+    ctx.moveTo(railx-5,yc+8); ctx.lineTo(railx+5,yc+8);
+    ctx.moveTo(railx-2,yc+11); ctx.lineTo(railx+2,yc+11);
+    ctx.stroke();
+  } else {
+    ctx.beginPath();
+    ctx.moveTo(railx,yc); ctx.lineTo(railx,yc-7);
+    ctx.moveTo(railx-8,yc-7); ctx.lineTo(railx+8,yc-7);
+    ctx.stroke();
+    ctx.fillStyle=wire; ctx.font="bold 9px ui-monospace, monospace"; ctx.textAlign="center"; ctx.textBaseline="alphabetic";
+    ctx.fillText("+V", railx, yc-10);
+  }
+  ctx.restore();
 }
 function roundRect(ctx,x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y);
   ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
