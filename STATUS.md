@@ -7,6 +7,28 @@ classroom (codename *New Proteus*). **Shipped and live:**
 
 ## Session log (newest first) — update this at the end of each session
 
+- **2026-07-05 (ASM editor — line numbers + syntax highlighting)** — The **Código (ASM)** editor now
+  has a **line-number gutter** and **full MPASM syntax highlighting**. **New `runtime/editor.js`** — a
+  self-contained, dependency-free, same-origin module (CSP-safe under `script-src 'self'`, offline via the
+  SW, like `asm.js`/`labs.js`); **no core/WASM change** (the 82 tests + the embed are untouched, no rebuild).
+  Technique: the classic **"highlight layer behind a transparent textarea"** — a `<pre class="edHl">` renders
+  colour-spanned tokens, the real `<textarea id="edSrc">` sits on top with `color:transparent` + a visible
+  `caret-color`, and the two + the gutter are kept in lock-step on scroll. Editing stays 100% native
+  (selection, undo, IME, mobile keyboard). The tokenizer pulls its keyword tables from **`window.NP_ASM`**
+  when present (the 35 mnemonics from `OPS`, SFR/bit/config names from `SFR`/`BIT`/`CFG`) so highlighting
+  always agrees with what actually assembles, with a baked-in fallback if `asm.js` failed. Token classes:
+  comments, mnemonics, directives, numbers (all radixes `0x`/`H''`/`B''`/`D''`/`.dec`/`'c'`), registers,
+  and column-1 labels. `index.html`: wrapped `#edSrc` in `.edWrap` (gutter + `.edField` holding the `<pre>`
+  and the textarea), moved the border/focus ring to the wrapper, added **theme-aware `--tok-*` colours to
+  both palettes**, and made **`edSave()` call `NP_EDITOR.refresh()`** so every change — typing *and* every
+  programmatic set (demo source, Abrir .asm, Limpiar, Tab-indent, clear-on-.hex) — re-highlights (initial
+  render happens on `DOMContentLoaded`). `sw.js`: added `./editor.js` to the precache SHELL, cache **v2→v3**.
+  **Verified live in Chrome, both themes:** line numbers + full highlighting render, caret stays aligned
+  while typing (font/line-height/padding match exactly), horizontal + vertical + gutter scroll all sync
+  (textarea scrolls internally when the dock is height-constrained — no regression), demo **Compilar y
+  cargar** still loads/runs (13 instr), **zero console errors**. Pure runtime change → no wasm
+  rebuild/embed/verify-core. *Uncommitted.*
+
 - **2026-06-25 (clear the ASM editor when an unrelated .hex loads)** — `runtime/index.html` only. Loading a
   `.hex` that isn't from the editor now **empties the ASM editor** so stale code can't be mistaken for the loaded
   program (a brief note explains it). New `clearEditorSource()` is called from the **file-load** handler and the
