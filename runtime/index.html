@@ -451,7 +451,7 @@
           <button id="zoomFit" class="zbtn wide" title="Ajustar la placa a la vista" aria-label="Ajustar">Ajustar</button>
         </div>
       </div>
-      <div class="board-hint">Rueda o pellizco para hacer zoom · arrastrá para mover · doble clic para ajustar</div>
+      <div class="board-hint">Rueda o pellizco para hacer zoom · arrastrá para mover</div>
     </main>
 
     <aside class="dock" id="dock">
@@ -1577,7 +1577,7 @@ function endPointer(e){ pointers.delete(e.pointerId); if(pointers.size<2) pinchD
 canvas.addEventListener("pointerup", endPointer);
 canvas.addEventListener("pointercancel", endPointer);
 canvas.addEventListener("wheel",(e)=>{ e.preventDefault(); zoomBy(e.deltaY<0?1.12:1/1.12, e.clientX, e.clientY); }, {passive:false});
-canvas.addEventListener("dblclick",(e)=>{ if(view.zoom>1.01) resetView(); else setZoom(2.2, e.clientX, e.clientY); });
+// (double-click-to-fit removed — it fired when pressing a button fast; use the «Ajustar» button / zoom controls)
 document.getElementById("zoomIn").addEventListener("click",()=>zoomBy(1.25));
 document.getElementById("zoomOut").addEventListener("click",()=>zoomBy(1/1.25));
 document.getElementById("zoomFit").addEventListener("click", resetView);

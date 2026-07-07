@@ -7,6 +7,13 @@ classroom (codename *New Proteus*). **Shipped and live:**
 
 ## Session log (newest first) — update this at the end of each session
 
+- **2026-07-05 (removed double-click-to-fit on the board)** — Dropped the canvas `dblclick` → zoom/reset
+  handler (`runtime/index.html`); it fired when a student double-tapped a button to press it quickly and
+  yanked the zoom. Fitting the board is still available via the **Ajustar** button and the +/− zoom controls,
+  so nothing is lost; the board hint text no longer mentions "doble clic". Wheel/pinch zoom and drag-to-pan
+  are unchanged. Verified live: double-clicking a button leaves `view.zoom` at 1 (no zoom/pan), zero console
+  errors. Runtime-only, no core change. *Uncommitted.*
+
 - **2026-07-05 (buttons → schematic push-buttons with a 0/1 rail + live badge)** — Redrew the board
   buttons (`runtime/index.html`: canvas `drawButton` + the `build()` button branch; **no core/WASM change**)
   from the plain dark rounded box into a **schematic momentary push-button** that reads like a real circuit,
