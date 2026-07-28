@@ -155,6 +155,17 @@
   .zlabel{ min-width:42px; text-align:center; font:600 12px ui-monospace,monospace; color:#bfe6d0; user-select:none; }
   .zsep{ width:1px; height:18px; background:rgba(120,160,140,.28); margin:0 2px; }
   .board-hint{ font-size:11.5px; color:var(--text-faint); text-align:center; margin-top:-4px; }
+  /* empty stage: before a board is picked the middle is blank + a hint; the circuit
+     renders only once the student chooses a placa. Toggled by .stage.empty (JS). */
+  .board-empty{ position:absolute; inset:0; z-index:4; display:none; flex-direction:column;
+    align-items:center; justify-content:center; gap:9px; text-align:center; padding:24px; pointer-events:none; }
+  .board-empty svg{ width:44px; height:44px; color:var(--text-faint); opacity:.55; }
+  .board-empty .be-title{ font-size:15px; font-weight:600; color:var(--text-dim); }
+  .board-empty .be-sub{ font-size:12.5px; line-height:1.5; max-width:290px; color:var(--text-faint); }
+  .stage.empty .board-empty{ display:flex; }
+  .stage.empty .zoombar{ display:none; }
+  .stage.empty .board-hint{ display:none; }
+  .stage.empty #board{ cursor:default; }
 
   /* ===== debugger ===== */
   .dbgToggle{ align-self:center; background:var(--surface); color:var(--text-dim);
@@ -440,9 +451,14 @@
       <div id="status" class="status">Cargando núcleo…</div>
     </aside>
 
-    <main class="stage">
+    <main class="stage empty">
       <div class="board-wrap" id="boardWrap">
         <canvas id="board" width="920" height="640"></canvas>
+        <div class="board-empty" id="boardEmpty" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="8" width="14" height="10" rx="1.5"/><path d="M9 8V5.5M15 8V5.5M9 18v2.5M15 18v2.5M5 11H2.5M5 15H2.5M19 11h2.5M19 15h2.5"/></svg>
+          <div class="be-title">Elegí una placa para empezar</div>
+          <div class="be-sub">Seleccioná una placa o ejemplo en el menú «Placa» para ver el circuito acá.</div>
+        </div>
         <div class="zoombar" role="group" aria-label="Zoom de la placa">
           <button id="zoomOut" class="zbtn" title="Alejar" aria-label="Alejar">&minus;</button>
           <span id="zoomLabel" class="zlabel">100%</span>
@@ -1059,7 +1075,8 @@ function roundRect(ctx,x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y);
 const canvas=document.getElementById("board"), ctx=canvas.getContext("2d"), statusEl=document.getElementById("status");
 let wiring=null;
 let buttonPins=new Set();   // pins that have a button wired to them (drives an input)
-let components=build(LED_DIAGRAM), running=false;
+let components=[], running=false;   // no default board — the stage stays empty until a placa is chosen
+let boardLoaded=false;               // becomes true once setDiagram() loads a board (see .stage.empty)
 let dbgOpen=true, dbgTick=0;
 const view={ zoom:1, panX:0, panY:0, base:1 };   // board view transform (zoom + pan); base fits the 920-wide board to the canvas, recomputed each frame
 const breakSet=new Set();
@@ -1102,9 +1119,11 @@ function frame(){
   ctx.save();
   ctx.translate(view.panX, view.panY);
   ctx.scale(view.base*view.zoom, view.base*view.zoom);
-  drawChip(ctx);
-  for(const c of components) c.drawBody(ctx);
-  drawWiring(ctx);
+  if(boardLoaded){                       // empty stage until a placa is chosen
+    drawChip(ctx);
+    for(const c of components) c.drawBody(ctx);
+    drawWiring(ctx);
+  }
   ctx.restore();
   updateReadout();
   if(dbgOpen && running && (++dbgTick % 6 === 0)) refreshDebug();
@@ -1117,7 +1136,8 @@ function esc(s){ return String(s).replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;"
 function setStatus(m,c){ statusEl.textContent=m; statusEl.className="status "+(c||""); }
 function enable(ids,on){ ids.forEach((id)=>document.getElementById(id).disabled=!on); }
 function coreReady(){ populateLabs(); enable(["labSelect","stepBtn","step10","step100"],true); if(dbgOpen){ rebuildProg(); refreshDebug(); } }
-function setDiagram(d){ components=build(d); resetView(); }
+function setBoardLoaded(on){ boardLoaded=on; if(stageEl) stageEl.classList.toggle("empty", !on); }
+function setDiagram(d){ components=build(d); setBoardLoaded(true); resetView(); }
 function afterHex(ok,name){ if(!ok){ setStatus("No se pudo leer "+name,"err"); return; }
   X.np_reset(); for(const c of components) if(c.idle) c.idle();
   enable(["playPauseBtn","stopBtn"],true);

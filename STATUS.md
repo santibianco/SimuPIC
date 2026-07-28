@@ -7,6 +7,18 @@ classroom (codename *New Proteus*). **Shipped and live:**
 
 ## Session log (newest first) — update this at the end of each session
 
+- **2026-07-27 (main menu — empty board stage until a placa is chosen)** — On load the middle stage no
+  longer renders a default board. Previously `runtime/index.html` ran `let components=build(LED_DIAGRAM)` at
+  startup, so the PIC chip + 8 LEDs + button + wiring drew before any selection. Now `components=[]` and a new
+  `boardLoaded` flag gates the canvas draw (chip/components/wiring render only once a board loads); a new
+  `.stage.empty` state shows a centered hint ("Elegí una placa para empezar") and hides the zoom toolbar and
+  board hint. `setDiagram()` calls `setBoardLoaded(true)`, so picking any placa/ejemplo reveals the circuit
+  exactly as before. CSS + an HTML overlay (`.board-empty`) + JS only — **no core/WASM change**. Verified live
+  in Chrome: fresh load shows the empty hint (stage class `stage empty`); selecting "Ejemplo · Parpadeo"
+  renders the chip + LEDs running and restores the zoom controls (class back to `stage`); both inline scripts
+  pass a `vm.Script` syntax check. Note: loading a raw `.hex` without first picking a placa leaves the stage
+  empty by design (pick a board first). *Uncommitted.*
+
 - **2026-07-05 (removed double-click-to-fit on the board)** — Dropped the canvas `dblclick` → zoom/reset
   handler (`runtime/index.html`); it fired when a student double-tapped a button to press it quickly and
   yanked the zoom. Fitting the board is still available via the **Ajustar** button and the +/− zoom controls,
