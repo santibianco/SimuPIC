@@ -7,7 +7,7 @@ classroom (codename *New Proteus*). **Shipped and live:**
 
 ## Session log (newest first) — update this at the end of each session
 
-- **2026-07-27 (main menu — empty board stage until a placa is chosen)** — On load the middle stage no
+- **2026-07-27 (main menu — empty stage + gated compile + locked placeholder until a placa is chosen)** — On load the middle stage no
   longer renders a default board. Previously `runtime/index.html` ran `let components=build(LED_DIAGRAM)` at
   startup, so the PIC chip + 8 LEDs + button + wiring drew before any selection. Now `components=[]` and a new
   `boardLoaded` flag gates the canvas draw (chip/components/wiring render only once a board loads); a new
@@ -17,7 +17,14 @@ classroom (codename *New Proteus*). **Shipped and live:**
   in Chrome: fresh load shows the empty hint (stage class `stage empty`); selecting "Ejemplo · Parpadeo"
   renders the chip + LEDs running and restores the zoom controls (class back to `stage`); both inline scripts
   pass a `vm.Script` syntax check. Note: loading a raw `.hex` without first picking a placa leaves the stage
-  empty by design (pick a board first). *Uncommitted.*
+  empty by design (pick a board first). **Two follow-ups the same day:** (1) the **«Compilar y cargar» button
+  (`#edBuild`) is now `disabled` until a board is loaded** — `setBoardLoaded()` flips it (disabled ⇄ enabled)
+  alongside the stage state, with a "Elegí una placa antes de compilar" title while disabled; the existing
+  core/asm guards in the click handler are unchanged. (2) the **placeholder `<option>` «— elegí una placa o
+  ejemplo —» is now `disabled selected`** in `populateLabs()`, so it shows as the initial empty value but
+  can't be re-selected once a real placa is chosen. Verified live: on load `edBuild.disabled===true` and the
+  placeholder is greyed; after selecting "Ejemplo · Parpadeo" the board renders, `edBuild.disabled===false`
+  (button solid blue), and the placeholder stays disabled. *Uncommitted.*
 
 - **2026-07-05 (removed double-click-to-fit on the board)** — Dropped the canvas `dblclick` → zoom/reset
   handler (`runtime/index.html`); it fired when a student double-tapped a button to press it quickly and

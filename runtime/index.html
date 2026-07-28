@@ -519,7 +519,7 @@
           </div>
           <div class="edBar">
             <input id="edFile" type="file" accept=".asm,.inc,.txt" style="display:none" />
-            <button id="edBuild" class="btn btn-primary">Compilar y cargar ▸</button>
+            <button id="edBuild" class="btn btn-primary" disabled title="Elegí una placa antes de compilar">Compilar y cargar ▸</button>
             <button id="edOpen" class="ebtn" title="Abrir un archivo .asm" aria-label="Abrir .asm">
               <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7.5a2 2 0 0 1 2-2h3.6l2 2H19a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
             </button>
@@ -1136,7 +1136,8 @@ function esc(s){ return String(s).replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;"
 function setStatus(m,c){ statusEl.textContent=m; statusEl.className="status "+(c||""); }
 function enable(ids,on){ ids.forEach((id)=>document.getElementById(id).disabled=!on); }
 function coreReady(){ populateLabs(); enable(["labSelect","stepBtn","step10","step100"],true); if(dbgOpen){ rebuildProg(); refreshDebug(); } }
-function setBoardLoaded(on){ boardLoaded=on; if(stageEl) stageEl.classList.toggle("empty", !on); }
+function setBoardLoaded(on){ boardLoaded=on; if(stageEl) stageEl.classList.toggle("empty", !on);
+  const b=document.getElementById("edBuild"); if(b){ b.disabled=!on; b.title=on?"":"Elegí una placa antes de compilar"; } }
 function setDiagram(d){ components=build(d); setBoardLoaded(true); resetView(); }
 function afterHex(ok,name){ if(!ok){ setStatus("No se pudo leer "+name,"err"); return; }
   X.np_reset(); for(const c of components) if(c.idle) c.idle();
@@ -1171,7 +1172,7 @@ const LABS = USER_LABS.concat(BUILTIN_LABS);
 
 function populateLabs(){
   const sel=document.getElementById("labSelect");
-  let html='<option value="">— elegí una placa o ejemplo —</option>';
+  let html='<option value="" disabled selected>— elegí una placa o ejemplo —</option>';
   const order=[], byGroup={};
   LABS.forEach((l,i)=>{ const g=l.group||"Trabajos Prácticos"; if(!byGroup[g]){ byGroup[g]=[]; order.push(g); } byGroup[g].push(i); });
   for(const g of order)
