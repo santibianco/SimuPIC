@@ -7,6 +7,22 @@ classroom (codename *New Proteus*). **Shipped and live:**
 
 ## Session log (newest first) — update this at the end of each session
 
+- **2026-07-27 (terminology → Debugger/Watch + collapsible zoom bar, collapsed by default)** — Two more UI
+  fixes in `runtime/index.html`, no core/WASM change. (1) **Terminology:** the panel is now labelled
+  **«Debugger»** (navbar toggle text + aria, dock title, close-button titles) and the debugger view formerly
+  **«Vigilar»** is now **«Watch»** — Argentine students use the English debugger terms. Global rename:
+  9× `Depurador`→`Debugger`, 3× `depurador`→`debugger`, 2× `Vigilar`→`Watch` (whole word only; camelCase ids
+  like `saveWatch`/`dbgWatch`/`resolveWatch` untouched). Other Spanish view labels (Programa/Datos/SFR/Pila)
+  left as-is. Older log entries below still say "Depurador" — they record what was done at the time.
+  (2) **Zoom bar collapse:** the floating `−/100%/+/Ajustar` toolbar covered too much of the board (worst on
+  phones). It's now wrapped in `#zoomCtrls` behind a magnifier toggle `#zoomToggle` and defaults **collapsed on
+  every screen** — the board shows just the small magnifier; tap to expand, tap again to collapse. State
+  persists in `localStorage.np_zoombar` (unset/"0" = collapsed, "1" = expanded); `.zoombar.collapsed` hides
+  `.zoomCtrls`. `.stage.empty .zoombar` still hides the whole bar until a board is picked. Verified live in
+  Chrome: desktop (1535px) and phone (664px) both load collapsed to one magnifier button; navbar/dock read
+  «Debugger» and the debugger view list ends in «Watch»; tapping the magnifier expands the controls and
+  persists; inline scripts pass a `vm.Script` syntax check. *Uncommitted.*
+
 - **2026-07-27 (main menu — empty stage + gated compile + locked placeholder until a placa is chosen)** — On load the middle stage no
   longer renders a default board. Previously `runtime/index.html` ran `let components=build(LED_DIAGRAM)` at
   startup, so the PIC chip + 8 LEDs + button + wiring drew before any selection. Now `components=[]` and a new

@@ -154,6 +154,8 @@
   .zbtn.wide{ width:auto; padding:0 10px; font-size:12px; font-weight:600; }
   .zlabel{ min-width:42px; text-align:center; font:600 12px ui-monospace,monospace; color:#bfe6d0; user-select:none; }
   .zsep{ width:1px; height:18px; background:rgba(120,160,140,.28); margin:0 2px; }
+  .zoomCtrls{ display:flex; align-items:center; gap:4px; }
+  .zoombar.collapsed .zoomCtrls{ display:none; }   /* collapsed (the default) → only the magnifier toggle shows */
   .board-hint{ font-size:11.5px; color:var(--text-faint); text-align:center; margin-top:-4px; }
   /* empty stage: before a board is picked the middle is blank + a hint; the circuit
      renders only once the student chooses a placa. Toggled by .stage.empty (JS). */
@@ -324,7 +326,7 @@
   .dbgPanes.single{ grid-template-columns:1fr; }
   .dbgPanes.single .dbgPane.paneB{ display:none; }
   .dbgPanes.single .paneSplit{ display:grid; }
-  /* dock blocks: Depurador + Código stack and share the dock height; either can be closed independently */
+  /* dock blocks: Debugger + Código stack and share the dock height; either can be closed independently */
   .dockBlock{ flex:1 1 0; min-height:0; display:flex; flex-direction:column; gap:10px; }
   .dockBlock.hidden{ display:none; }
   .dockBlockBar{ display:flex; align-items:center; gap:8px; }
@@ -400,7 +402,7 @@
       <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><path d="M9 8.5 5.5 12 9 15.5M15 8.5 18.5 12 15 15.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
       <span class="barbtn-tx">Código</span>
     </button>
-    <button id="toggleDebug" class="barbtn active" title="Mostrar u ocultar el depurador" aria-label="Depurador" aria-pressed="true">
+    <button id="toggleDebug" class="barbtn active" title="Mostrar u ocultar el debugger" aria-label="Debugger" aria-pressed="true">
       <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
         <path d="m8 2 1.88 1.88"/><path d="M14.12 3.88 16 2"/>
         <path d="M9 7.13v-1a3.003 3.003 0 1 1 6 0v1"/>
@@ -409,7 +411,7 @@
         <path d="M3 21c0-2.1 1.7-3.9 3.8-4"/><path d="M20.97 5c0 2.1-1.6 3.8-3.5 4"/>
         <path d="M22 13h-4"/><path d="M17.2 17c2.1.1 3.8 1.9 3.8 4"/>
       </svg>
-      <span class="barbtn-tx">Depurador</span>
+      <span class="barbtn-tx">Debugger</span>
     </button>
     <button id="themeBtn" class="iconbtn" title="Cambiar tema (claro / oscuro)" aria-label="Cambiar tema">
       <svg class="icon-sun" viewBox="0 0 24 24" width="19" height="19" aria-hidden="true"><circle cx="12" cy="12" r="4" fill="currentColor"/><path d="M12 2.4v2.5M12 19.1v2.5M2.4 12h2.5M19.1 12h2.5M5.2 5.2l1.8 1.8M17 17l1.8 1.8M18.8 5.2L17 7M7 17l-1.8 1.8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
@@ -459,12 +461,17 @@
           <div class="be-title">Elegí una placa para empezar</div>
           <div class="be-sub">Seleccioná una placa o ejemplo en el menú «Placa» para ver el circuito acá.</div>
         </div>
-        <div class="zoombar" role="group" aria-label="Zoom de la placa">
-          <button id="zoomOut" class="zbtn" title="Alejar" aria-label="Alejar">&minus;</button>
-          <span id="zoomLabel" class="zlabel">100%</span>
-          <button id="zoomIn" class="zbtn" title="Acercar" aria-label="Acercar">+</button>
-          <span class="zsep"></span>
-          <button id="zoomFit" class="zbtn wide" title="Ajustar la placa a la vista" aria-label="Ajustar">Ajustar</button>
+        <div class="zoombar collapsed" id="zoombar" role="group" aria-label="Zoom de la placa">
+          <button id="zoomToggle" class="zbtn zoomToggle" title="Mostrar u ocultar los controles de zoom" aria-label="Mostrar u ocultar los controles de zoom" aria-expanded="false">
+            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m20 20-4.7-4.7M7.5 10.5h6M10.5 7.5v6"/></svg>
+          </button>
+          <div class="zoomCtrls" id="zoomCtrls">
+            <button id="zoomOut" class="zbtn" title="Alejar" aria-label="Alejar">&minus;</button>
+            <span id="zoomLabel" class="zlabel">100%</span>
+            <button id="zoomIn" class="zbtn" title="Acercar" aria-label="Acercar">+</button>
+            <span class="zsep"></span>
+            <button id="zoomFit" class="zbtn wide" title="Ajustar la placa a la vista" aria-label="Ajustar">Ajustar</button>
+          </div>
         </div>
       </div>
       <div class="board-hint">Rueda o pellizco para hacer zoom · arrastrá para mover</div>
@@ -475,9 +482,9 @@
       <div class="dockInner">
         <section id="dockDebug" class="dockBlock">
         <div class="dockBlockBar">
-          <span class="dockTitle">Depurador</span>
+          <span class="dockTitle">Debugger</span>
           <span class="dockSpacer"></span>
-          <button id="closeDebug" class="dockIcon" title="Cerrar el depurador" aria-label="Cerrar el depurador">✕</button>
+          <button id="closeDebug" class="dockIcon" title="Cerrar el debugger" aria-label="Cerrar el debugger">✕</button>
         </div>
         <div class="dbgHead">
           <div class="dbgRegs">
@@ -1205,9 +1212,9 @@ function togglePlay(){ if(running) pause(); else play(); }
 playPauseBtn.addEventListener("click", togglePlay);
 stopBtn.addEventListener("click", stop);
 
-// ===== Depurador (debugger dock) =====
+// ===== Debugger (debugger dock) =====
 // Two panes; each pane independently picks any view (Programa / Datos / SFR /
-// Pila / Vigilar), so a student can watch e.g. the program and a watch list at the
+// Pila / Watch), so a student can watch e.g. the program and a watch list at the
 // same time. Below 1200px the dock un-docks beneath the board and only the left
 // pane shows — the dual view is a desktop-only convenience.
 const STATUS_BITS = [["C",0],["DC",1],["Z",2],["RP0",5]];
@@ -1220,7 +1227,7 @@ const SFRS = [
   ["TMR0",0x01],["PCL",0x02],["PCLATH",0x0A],["FSR",0x04],
   ["EEDATA",0x9A],["EEADR",0x9B],["EECON1",0x9C],
 ];
-const VIEW_LABELS = { prog:"Programa", data:"Datos", sfr:"SFR", stack:"Pila", watch:"Vigilar" };
+const VIEW_LABELS = { prog:"Programa", data:"Datos", sfr:"SFR", stack:"Pila", watch:"Watch" };
 const VIEW_ORDER  = ["prog","data","sfr","stack","watch"];
 const NAME_ADDR={}; SFRS.forEach(([n,a])=>{ if(a>=0) NAME_ADDR[n]=a; });
 
@@ -1348,7 +1355,7 @@ function setSplit(on){
   try{ localStorage.setItem("np_split", on?"1":"0"); }catch(e){}
   if(on) renderPane("B", true);
 }
-// the dock holds two independent blocks (Depurador + Código); each opens/closes on its own,
+// the dock holds two independent blocks (Debugger + Código); each opens/closes on its own,
 // so a student can have the debugger and the editor visible at the same time.
 let edPanelOpen=false;
 function syncDock(){
@@ -1432,7 +1439,7 @@ panesEl.addEventListener("keydown",(e)=>{ if(e.key==="Enter" && e.target.classLi
   handle.addEventListener("pointerup", end); handle.addEventListener("pointercancel", end);
 })();
 
-// init panes + dock blocks (Depurador + Código toggle independently; saved choice wins)
+// init panes + dock blocks (Debugger + Código toggle independently; saved choice wins)
 populatePaneSelects();
 document.getElementById("paneClose").addEventListener("click", ()=> setSplit(false));   // ✕ on pane B
 document.getElementById("paneSplit").addEventListener("click", ()=> setSplit(true));     // ⊞ on pane A (visible when single)
@@ -1490,7 +1497,7 @@ edSrcEl.addEventListener("keydown",(e)=>{ if(e.key==="Tab"){ e.preventDefault();
   const s=edSrcEl.selectionStart, en=edSrcEl.selectionEnd;
   edSrcEl.value=edSrcEl.value.slice(0,s)+"    "+edSrcEl.value.slice(en);
   edSrcEl.selectionStart=edSrcEl.selectionEnd=s+4; edSave(); } });
-// (the editor lives in the right dock's "Código" block — toggled by showEditor in the Depurador section)
+// (the editor lives in the right dock's "Código" block — toggled by showEditor in the Debugger section)
 document.getElementById("edDownload").addEventListener("click", ()=>{
   const blob=new Blob([edSrcEl.value], {type:"text/plain;charset=utf-8"});
   const a=document.createElement("a"); a.href=URL.createObjectURL(blob);
@@ -1517,7 +1524,7 @@ document.getElementById("edBuild").addEventListener("click", ()=>{
               : "✗ El núcleo rechazó el .hex generado.", ok?"ok":"err");
 });
 // (breakpoint toggling, cell/SFR inline edit and watch add/remove are handled by
-//  the delegated listeners on #dbgPanes in the Depurador section above.)
+//  the delegated listeners on #dbgPanes in the Debugger section above.)
 // ===== clock: text input + slider shortcut (1-2-5 steps, 1 Hz … 8 MHz) =====
 const SPEEDS=[1,2,5,10,20,50,100,200,500,1e3,2e3,5e3,1e4,2e4,5e4,1e5,2e5,5e5,1e6,2e6,4e6,8e6];
 const clockRange=document.getElementById("clockRange"); clockRange.max=SPEEDS.length-1;
@@ -1602,6 +1609,16 @@ canvas.addEventListener("wheel",(e)=>{ e.preventDefault(); zoomBy(e.deltaY<0?1.1
 document.getElementById("zoomIn").addEventListener("click",()=>zoomBy(1.25));
 document.getElementById("zoomOut").addEventListener("click",()=>zoomBy(1/1.25));
 document.getElementById("zoomFit").addEventListener("click", resetView);
+// zoom bar collapse: the −/%/+/Ajustar controls fold into a single magnifier button so they don't cover
+// the board. Collapsed by default on every screen; tap the magnifier to expand. Persisted in np_zoombar.
+(function(){
+  const bar=document.getElementById("zoombar"), tog=document.getElementById("zoomToggle");
+  if(!bar||!tog) return;
+  let open; try{ const s=localStorage.getItem("np_zoombar"); open=(s==="1"); }catch(e){ open=false; }
+  function apply(){ bar.classList.toggle("collapsed", !open); tog.setAttribute("aria-expanded", open?"true":"false"); }
+  apply();
+  tog.addEventListener("click", ()=>{ open=!open; try{ localStorage.setItem("np_zoombar", open?"1":"0"); }catch(e){} apply(); });
+})();
 window.addEventListener("resize", clampPan);
 
 // ===== theme toggle (dark / light, persisted) =====
