@@ -20,6 +20,7 @@
     --accent:#7c8cff; --accent-strong:#6a7bff; --accent-contrast:#ffffff; --accent-soft:rgba(124,140,255,.18);
     --ok:#54cd8c; --err:#ff6b6b; --purple:#cda9ff;
     --board:#0e1f17; --board-border:#2e3540;
+    --zbar-bg:rgba(13,20,17,.78); --zbar-border:rgba(120,160,140,.28); --zbar-text:#cfeadd; --zbar-hover:rgba(120,160,140,.20);
     --code-bg:#0b0f15; --code-border:#222a34; --code-row-hover:#161b22;
     --code-text:#e6edf3; --code-addr:#6e7681; --code-word:#7cc7ff; --pc-row:rgba(84,205,140,.20);
     --tok-comment:#7c8798; --tok-key:#85a9ff; --tok-dir:#e58fd8; --tok-reg:#cda9ff; --tok-num:#e6b673; --tok-str:#7fd18b; --tok-label:#5fd0cf; --tok-sel:rgba(124,140,255,.30);
@@ -32,7 +33,9 @@
     --text:#1b2330; --text-dim:#586271; --text-faint:#8b94a3;
     --accent:#5868f5; --accent-strong:#4856e8; --accent-contrast:#ffffff; --accent-soft:rgba(88,104,245,.12);
     --ok:#1a9d5f; --err:#e5484d; --purple:#7c4def;
-    --board:#0e1f17; --board-border:#cfd6e2;
+    /* near-white board: a dark board washes out when projected in a classroom */
+    --board:#f8fafd; --board-border:#cfd6e2;
+    --zbar-bg:rgba(255,255,255,.88); --zbar-border:rgba(70,95,125,.26); --zbar-text:#243447; --zbar-hover:rgba(40,60,90,.10);
     --code-bg:#f3f6fc; --code-border:#dde3ee; --code-row-hover:#e9eef7;
     --code-text:#1b2330; --code-addr:#8b94a3; --code-word:#3b5bdb; --pc-row:rgba(26,157,95,.16);
     --tok-comment:#77828f; --tok-key:#3654d6; --tok-dir:#b0439a; --tok-reg:#7c4def; --tok-num:#9a5a12; --tok-str:#17864f; --tok-label:#0d7d78; --tok-sel:rgba(88,104,245,.22);
@@ -146,14 +149,14 @@
   #board.panning{ cursor:grabbing; }
   /* floating zoom toolbar (top-right of the board) */
   .zoombar{ position:absolute; top:12px; right:12px; z-index:5; display:flex; align-items:center; gap:4px;
-    padding:4px; background:rgba(13,20,17,.78); border:1px solid rgba(120,160,140,.28); border-radius:12px;
-    backdrop-filter:blur(6px); box-shadow:0 6px 18px rgba(0,0,0,.32); }
+    padding:4px; background:var(--zbar-bg); border:1px solid var(--zbar-border); border-radius:12px;
+    backdrop-filter:blur(6px); box-shadow:var(--shadow-sm); }
   .zbtn{ width:30px; height:30px; display:grid; place-items:center; border-radius:8px; border:1px solid transparent;
-    background:transparent; color:#cfeadd; font-size:17px; line-height:1; font-family:inherit; cursor:pointer; transition:background .12s; }
-  .zbtn:hover{ background:rgba(120,160,140,.20); }
+    background:transparent; color:var(--zbar-text); font-size:17px; line-height:1; font-family:inherit; cursor:pointer; transition:background .12s; }
+  .zbtn:hover{ background:var(--zbar-hover); }
   .zbtn.wide{ width:auto; padding:0 10px; font-size:12px; font-weight:600; }
-  .zlabel{ min-width:42px; text-align:center; font:600 12px ui-monospace,monospace; color:#bfe6d0; user-select:none; }
-  .zsep{ width:1px; height:18px; background:rgba(120,160,140,.28); margin:0 2px; }
+  .zlabel{ min-width:42px; text-align:center; font:600 12px ui-monospace,monospace; color:var(--zbar-text); user-select:none; }
+  .zsep{ width:1px; height:18px; background:var(--zbar-border); margin:0 2px; }
   .zoomCtrls{ display:flex; align-items:center; gap:4px; }
   .zoombar.collapsed .zoomCtrls{ display:none; }   /* collapsed (the default) → only the magnifier toggle shows */
   .board-hint{ font-size:11.5px; color:var(--text-faint); text-align:center; margin-top:-4px; }
@@ -848,8 +851,12 @@ function build(diagram){
     if(c.type==="led"){
       const p=PIN[c.pin]||{x:CHIP.x,y:CHIP.y}; const dir=p.side==="R"?1:-1;
       const pos={x:p.x+dir*52, y:p.y};
-      wiring.labels.push({x:pos.x+dir*36, y:pos.y, text:c.pin, kind:"pin"});
-      if(c.label) wiring.labels.push({x:pos.x, y:pos.y-23, text:c.label, kind:"cap"});
+      // ONE opaque badge per LED, anchored just outboard of the bulb and growing outboard, with any
+      // custom label folded in ("LED · RB1") exactly like the button labels. It used to be two labels:
+      // a centred "RB1" badge plus a separate *transparent* caption 23px above the bulb — and since
+      // rows are 32px apart while a bulb is 30px tall, that caption had nowhere to go and landed on the
+      // neighbouring bulb (unreadable on Ejercicio 1 and 2). Unlabelled LEDs shift by only ~2px.
+      wiring.labels.push({x:p.x+dir*75, y:pos.y, text:c.label?`${c.label} · ${c.pin}`:c.pin, kind:"pin", grow:dir});
       return {on:0,n:0,b:0,reset(){this.on=0;this.n=0;},clear(){this.on=0;this.n=0;this.b=0;},
         sample(pa,pb){ const lit=c.activeLow?pinVal(c.pin,pa,pb)===0:pinVal(c.pin,pa,pb)===1; if(lit)this.on++; this.n++; },
         integrate(dt){ const d=this.n?this.on/this.n:0; this.b+=(d-this.b)*(1-Math.exp(-dt/45)); },
@@ -878,7 +885,12 @@ function build(diagram){
       const p=PIN[c.pin]||{x:CHIP.x,y:CHIP.y}; const dir=p.side==="R"?1:-1;
       const bw=72, bh=48, pos={x:p.x+dir*84-(dir<0?bw:0), y:p.y-bh/2};
       buttonPins.add(c.pin);
-      wiring.labels.push({x:pos.x+bw/2, y:pos.y+bh+13, text:c.label?`${c.label} · ${c.pin}`:c.pin, kind:"pin"});
+      // Same rule as the LED badge: one opaque badge, anchored just outboard of the glyph (whose outer
+      // edge is p.x + dir*156) and growing outboard. It used to sit *below* the glyph at p.y+37 — 5px
+      // past the next pin row — so on "Ejercicio 2" it covered RB1's badge. Keeping every label centred
+      // on its own pin row is what makes clashes impossible: rows are 32px apart and a badge is 16px
+      // tall, so neighbouring rows always clear each other no matter how long a label gets.
+      wiring.labels.push({x:p.x+dir*164, y:p.y, text:c.label?`${c.label} · ${c.pin}`:c.pin, kind:"pin", grow:dir});
       return {pressed:false,pin:c.pin,reset(){},sample(){},clear(){this.pressed=false;},
         idle(){ const pi=pinIndex(c.pin); if(X&&pi>=0) X.np_set_pin(pi, c.activeLow?1:0); },
         press(v){ this.pressed=v; const pi=pinIndex(c.pin); if(X&&pi>=0){ X.np_set_pin(pi, (v?!c.activeLow:c.activeLow)?1:0);
@@ -909,6 +921,44 @@ function build(diagram){
   return objs;
 }
 
+// ===== board palette (theme-aware) =====
+// The board is drawn on a <canvas>, so it can't use the CSS variables — these two tables are the
+// canvas equivalent of the `[data-theme]` blocks above. `BP` points at the active one and every
+// draw call reads from it, so flipping the theme repaints the board on the next frame.
+//
+// The light board is a near-white surface for classroom projectors (a dark board washes out badly
+// when projected). Two things deliberately stay dark in BOTH themes because that's what the real
+// parts look like — and it keeps the red/blue signal colours readable: the **DIP chip body** and the
+// **7-segment display face**. Everything drawn ON the board (labels, pin names, wires, badges)
+// flips to dark ink on light. The pin-state colours keep their meaning everywhere:
+// red = 1 · blue = 0 · grey = undefined · amber = button on an output pin (TRIS conflict).
+const BOARD_THEMES = {
+  dark: {
+    badgeBg:"rgba(16,34,26,0.92)", badgeBorder:"#3f7a5c", badgeText:"#bfe6d0", badgeDim:"#7d9b8a", capText:"#8fb3a0",
+    chipBody:"#15191f", chipBorder:"#454d57", chipNotch:"#0a1f14", chipText:"#c9d1d9", chipSub:"#6e7681",
+    pinLead:"#8b949e", pinIdle:"#6e7681", pinHi:"#f0594e", pinLo:"#3f7fe0", pinWarn:"#f5b301",
+    pinRing:"rgba(0,0,0,0.45)", pinNameIo:"#bcd0e0", pinNamePwr:"#7c8794", pinNum:"#5b6470",
+    ledBase:"#0e1f17", ledIn:"255,90,70", ledOut:"110,18,18", ledGlow:"rgba(255,90,70,0.85)", ledRing:"#30363d",
+    segFace:"#0a0f0c", segBorder:"#2c3540", segGhost:"rgba(255,72,60,0.10)", segLit:"255,74,62", segGlow:"rgba(255,70,60,0.95)",
+    btnWire:"#9fb4c9", btnNode:"#c9d6e3", btnOpen:"#8a99aa", capRing:"rgba(255,255,255,.4)", capTx:"#fff",
+  },
+  light: {
+    badgeBg:"rgba(255,255,255,0.94)", badgeBorder:"#9aabbd", badgeText:"#1e2a37", badgeDim:"#75808d", capText:"#5a6673",
+    chipBody:"#2f3944", chipBorder:"#1c232b", chipNotch:"#1a212a", chipText:"#eef2f7", chipSub:"#98a3b0",
+    pinLead:"#5b6673", pinIdle:"#95a0ad", pinHi:"#dc3a2e", pinLo:"#2a62d4", pinWarn:"#c8820a",
+    pinRing:"rgba(0,0,0,0.30)", pinNameIo:"#22303e", pinNamePwr:"#78848f", pinNum:"#9aa6b4",
+    ledBase:"#ccd3db", ledIn:"255,86,66", ledOut:"150,30,24", ledGlow:"rgba(255,70,50,0.75)", ledRing:"#5b6673",
+    segFace:"#232a33", segBorder:"#48525f", segGhost:"rgba(255,72,60,0.12)", segLit:"255,74,62", segGlow:"rgba(255,70,60,0.90)",
+    btnWire:"#5b6673", btnNode:"#3d4854", btnOpen:"#79848f", capRing:"rgba(255,255,255,.5)", capTx:"#fff",
+  },
+};
+let BP = BOARD_THEMES.light;
+function applyBoardPalette(){
+  const t = document.documentElement.getAttribute("data-theme")==="dark" ? "dark" : "light";
+  BP = BOARD_THEMES[t];        // the rAF loop redraws every frame, so no explicit repaint is needed
+}
+applyBoardPalette();
+
 // ===== drawing =====
 // Label layer: a pin badge on each component (LED/button → pin, 7-seg → segment
 // pins + common). No wires — the connection is read by name, matching the pin
@@ -919,17 +969,20 @@ function drawWiring(ctx){
   for(const lb of wiring.labels){
     if(lb.kind==="segkey") drawSegKey(ctx,lb);
     else if(lb.kind==="seglegend") drawSegLegend(ctx,lb);
-    else if(lb.kind==="cap"){ ctx.font="9px ui-monospace, monospace"; ctx.fillStyle="#8fb3a0"; ctx.textAlign="center"; ctx.textBaseline="alphabetic"; ctx.fillText(lb.text, lb.x, lb.y); }
-    else drawPinBadge(ctx, lb.x, lb.y, lb.text);
+    else if(lb.kind==="cap"){ ctx.font="9px ui-monospace, monospace"; ctx.fillStyle=BP.capText; ctx.textAlign="center"; ctx.textBaseline="alphabetic"; ctx.fillText(lb.text, lb.x, lb.y); }
+    else drawPinBadge(ctx, lb.x, lb.y, lb.text, lb.grow);
   }
   ctx.restore();
 }
-function drawPinBadge(ctx,x,y,text){
+// `grow` is optional: -1/+1 anchors the badge's inner edge at x and extends it outboard (left/right)
+// instead of centring it on x — used by wide button labels so they keep clear of the badge column.
+function drawPinBadge(ctx,x,y,text,grow){
   ctx.font="bold 10px ui-monospace, monospace";
-  const w=ctx.measureText(text).width+12, h=16, bx=x-w/2, by=y-h/2;
-  roundRect(ctx,bx,by,w,h,5); ctx.fillStyle="rgba(16,34,26,0.92)"; ctx.fill();
-  ctx.lineWidth=1; ctx.strokeStyle="#3f7a5c"; ctx.stroke();
-  ctx.fillStyle="#bfe6d0"; ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.fillText(text,x,y); ctx.textBaseline="alphabetic";
+  const w=ctx.measureText(text).width+12, h=16;
+  const bx = grow ? (grow<0 ? x-w : x) : x-w/2, by=y-h/2;
+  roundRect(ctx,bx,by,w,h,5); ctx.fillStyle=BP.badgeBg; ctx.fill();
+  ctx.lineWidth=1; ctx.strokeStyle=BP.badgeBorder; ctx.stroke();
+  ctx.fillStyle=BP.badgeText; ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.fillText(text,bx+w/2,y); ctx.textBaseline="alphabetic";
 }
 // horizontal segment→pin key (a RB1 · b RB2 · … · g RB7), shown once for displays
 // that share segment pins. Segment letter dim, pin name bright.
@@ -939,13 +992,13 @@ function drawSegKey(ctx,lb){
   const cellW=lb.pins.map((p,i)=>ctx.measureText((letters[i]||"?")+" "+p).width);
   const sep=10, total=cellW.reduce((a,b)=>a+b,0)+sep*(lb.pins.length-1);
   const padX=11, h=18, w=total+padX*2, bx=lb.x-w/2, by=lb.y;
-  roundRect(ctx,bx,by,w,h,7); ctx.fillStyle="rgba(16,34,26,0.92)"; ctx.fill();
-  ctx.lineWidth=1; ctx.strokeStyle="#3f7a5c"; ctx.stroke();
+  roundRect(ctx,bx,by,w,h,7); ctx.fillStyle=BP.badgeBg; ctx.fill();
+  ctx.lineWidth=1; ctx.strokeStyle=BP.badgeBorder; ctx.stroke();
   ctx.textBaseline="middle"; ctx.textAlign="left"; let x=bx+padX;
   for(let i=0;i<lb.pins.length;i++){
     const l=letters[i]||"?";
-    ctx.fillStyle="#7d9b8a"; ctx.fillText(l, x, by+h/2);
-    ctx.fillStyle="#bfe6d0"; ctx.fillText(lb.pins[i], x+ctx.measureText(l+" ").width, by+h/2);
+    ctx.fillStyle=BP.badgeDim; ctx.fillText(l, x, by+h/2);
+    ctx.fillStyle=BP.badgeText; ctx.fillText(lb.pins[i], x+ctx.measureText(l+" ").width, by+h/2);
     x+=cellW[i]+sep;
   }
   ctx.textBaseline="alphabetic";
@@ -957,22 +1010,22 @@ function drawSegLegend(ctx,lb){
   const cw=arr=>arr.length?Math.max(...arr.map(([l,p])=>ctx.measureText(l+" "+p).width)):0;
   const w1=cw(c1), w2=cw(c2), colGap=12, padX=10, padY=5, lineH=10;
   const w=padX*2+w1+(c2.length?colGap+w2:0), h=padY*2+rows*lineH, bx=lb.x-w/2, by=lb.y;
-  roundRect(ctx,bx,by,w,h,6); ctx.fillStyle="rgba(16,34,26,0.92)"; ctx.fill();
-  ctx.lineWidth=1; ctx.strokeStyle="#3f7a5c"; ctx.stroke();
+  roundRect(ctx,bx,by,w,h,6); ctx.fillStyle=BP.badgeBg; ctx.fill();
+  ctx.lineWidth=1; ctx.strokeStyle=BP.badgeBorder; ctx.stroke();
   ctx.textBaseline="middle"; ctx.textAlign="left";
   const drawCol=(col,cx)=>col.forEach(([l,p],i)=>{ const cy=by+padY+i*lineH+lineH/2;
-    ctx.fillStyle="#7d9b8a"; ctx.fillText(l, cx, cy);
-    ctx.fillStyle="#bfe6d0"; ctx.fillText(p, cx+ctx.measureText(l+" ").width, cy); });
+    ctx.fillStyle=BP.badgeDim; ctx.fillText(l, cx, cy);
+    ctx.fillStyle=BP.badgeText; ctx.fillText(p, cx+ctx.measureText(l+" ").width, cy); });
   drawCol(c1, bx+padX); if(c2.length) drawCol(c2, bx+padX+w1+colGap);
   ctx.textBaseline="alphabetic";
 }
 function drawChip(ctx){
-  ctx.fillStyle="#15191f"; ctx.strokeStyle="#454d57"; ctx.lineWidth=2;
+  ctx.fillStyle=BP.chipBody; ctx.strokeStyle=BP.chipBorder; ctx.lineWidth=2;
   roundRect(ctx,CHIP.x,CHIP.y,CHIP.w,CHIP.h,8); ctx.fill(); ctx.stroke();
-  ctx.beginPath(); ctx.arc(CHIP.x+CHIP.w/2,CHIP.y+8,9,0,Math.PI); ctx.fillStyle="#0a1f14"; ctx.fill();
-  ctx.fillStyle="#c9d1d9"; ctx.font="bold 13px system-ui"; ctx.textAlign="center";
+  ctx.beginPath(); ctx.arc(CHIP.x+CHIP.w/2,CHIP.y+8,9,0,Math.PI); ctx.fillStyle=BP.chipNotch; ctx.fill();
+  ctx.fillStyle=BP.chipText; ctx.font="bold 13px system-ui"; ctx.textAlign="center";
   ctx.save(); ctx.translate(CHIP.x+CHIP.w/2,CHIP.y+CHIP.h/2); ctx.fillText("PIC16F628A",0,-6);
-  ctx.fillStyle="#6e7681"; ctx.font="11px system-ui"; ctx.fillText("DIP-18",0,12); ctx.restore();
+  ctx.fillStyle=BP.chipSub; ctx.font="11px system-ui"; ctx.fillText("DIP-18",0,12); ctx.restore();
   ctx.font="11px ui-monospace, monospace";
   // live pin-state squares (Proteus-style): red = 1, blue = 0; grey = no defined
   // value — a power pin (VSS/VDD), an input with nothing wired to it, or before the
@@ -984,41 +1037,47 @@ function drawChip(ctx){
   const trisA=ready?X.np_read_data(0x85):0xFF, trisB=ready?X.np_read_data(0x86):0xFF;
   for(const name in PIN){
     const p=PIN[name], isIo=/^R[AB]/.test(name), s=11;
-    ctx.strokeStyle="#8b949e"; ctx.lineWidth=2.5; ctx.beginPath();
+    ctx.strokeStyle=BP.pinLead; ctx.lineWidth=2.5; ctx.beginPath();
     ctx.moveTo(p.side==="L"?CHIP.x:CHIP.x+CHIP.w,p.y); ctx.lineTo(p.x,p.y); ctx.stroke();
-    let col="#6e7681";
+    let col=BP.pinIdle;
     if(ready&&isIo){ const m=/^R([AB])([0-7])$/.exec(name), input=((m[1]==="A"?trisA:trisB)>>(+m[2]))&1;
       const btn=buttonPins.has(name)?components.find(k=>k.pin===name&&k.press):null;
-      if(btn&&btn.pressed&&!input) col="#f5b301";                 // botón apretado sobre un pin de SALIDA → conflicto (TRIS mal)
-      else if(!input || buttonPins.has(name)) col=pinVal(name,pa,pb)?"#f0594e":"#3f7fe0"; }
+      if(btn&&btn.pressed&&!input) col=BP.pinWarn;                // botón apretado sobre un pin de SALIDA → conflicto (TRIS mal)
+      else if(!input || buttonPins.has(name)) col=pinVal(name,pa,pb)?BP.pinHi:BP.pinLo; }
     roundRect(ctx, p.x-s/2, p.y-s/2, s, s, 3); ctx.fillStyle=col; ctx.fill();
-    ctx.lineWidth=1; ctx.strokeStyle="rgba(0,0,0,0.45)"; ctx.stroke();
+    ctx.lineWidth=1; ctx.strokeStyle=BP.pinRing; ctx.stroke();
     ctx.font=isIo?"bold 11px ui-monospace, monospace":"11px ui-monospace, monospace";
-    ctx.fillStyle=isIo?"#bcd0e0":"#7c8794"; ctx.textAlign=p.side==="L"?"end":"start";
+    ctx.fillStyle=isIo?BP.pinNameIo:BP.pinNamePwr; ctx.textAlign=p.side==="L"?"end":"start";
     ctx.fillText(name, p.side==="L"?p.x-s/2-6:p.x+s/2+6, p.y+3.5);
-    ctx.font="10px ui-monospace, monospace"; ctx.fillStyle="#5b6470"; ctx.textAlign="center";
+    ctx.font="10px ui-monospace, monospace"; ctx.fillStyle=BP.pinNum; ctx.textAlign="center";
     ctx.fillText(p.num, p.side==="L"?CHIP.x+13:CHIP.x+CHIP.w-13, p.y+3.5);
   }
 }
 function drawLed(ctx,x,y,b){
   ctx.save(); ctx.beginPath(); ctx.arc(x,y,15,0,Math.PI*2);
+  // Opaque body first, then the red gradient over it. The gradient is semi-transparent at low
+  // brightness, so without this base an unlit LED would vanish into a light board (on dark, the
+  // base is the board colour itself, so the original look is unchanged).
+  ctx.fillStyle=BP.ledBase; ctx.fill();
   const g=ctx.createRadialGradient(x,y,2,x,y,15);
-  g.addColorStop(0,`rgba(255,90,70,${0.22+0.78*b})`); g.addColorStop(1,`rgba(110,18,18,${0.35+0.4*b})`);
-  ctx.fillStyle=g; if(b>0.05){ctx.shadowColor="rgba(255,90,70,0.85)";ctx.shadowBlur=16*b;} ctx.fill();
-  ctx.shadowBlur=0; ctx.lineWidth=2; ctx.strokeStyle="#30363d"; ctx.stroke(); ctx.restore();
+  g.addColorStop(0,`rgba(${BP.ledIn},${0.22+0.78*b})`); g.addColorStop(1,`rgba(${BP.ledOut},${0.35+0.4*b})`);
+  ctx.fillStyle=g; if(b>0.05){ctx.shadowColor=BP.ledGlow;ctx.shadowBlur=16*b;} ctx.fill();
+  ctx.shadowBlur=0; ctx.lineWidth=2; ctx.strokeStyle=BP.ledRing; ctx.stroke(); ctx.restore();
 }
 function drawSeven(ctx,x,y,b,W,H){
   const t=Math.round(W*0.145);
   const s=[[x+t,y,W-2*t,t],[x+W-t,y+t,t,H/2-t],[x+W-t,y+H/2,t,H/2-t],[x+t,y+H-t,W-2*t,t],
            [x,y+H/2,t,H/2-t],[x,y+t,t,H/2-t],[x+t,y+H/2-t/2,W-2*t,t]];
   ctx.save();
-  ctx.fillStyle="#0a0f0c"; ctx.strokeStyle="#2c3540"; ctx.lineWidth=1.5;
+  // The display face stays dark in both themes — real 7-seg modules have a dark filter, and it's
+  // what keeps the red segments readable (a red-on-white display would be washed out on a projector).
+  ctx.fillStyle=BP.segFace; ctx.strokeStyle=BP.segBorder; ctx.lineWidth=1.5;
   roundRect(ctx,x-14,y-14,W+28,H+28,12); ctx.fill(); ctx.stroke();
-  ctx.fillStyle="rgba(255,72,60,0.10)";                       // ghost: the digit's shape is always faintly visible, like a real LED display
+  ctx.fillStyle=BP.segGhost;                                  // ghost: the digit's shape is always faintly visible, like a real LED display
   for(let i=0;i<7;i++){ const r=s[i]; ctx.fillRect(r[0],r[1],r[2],r[3]); }
   for(let i=0;i<7;i++){ const v=b[i]; if(v<=0.02) continue;    // lit segments on top
-    ctx.fillStyle=`rgba(255,74,62,${0.16+0.84*v})`;
-    ctx.shadowColor="rgba(255,70,60,0.95)"; ctx.shadowBlur=13*v;
+    ctx.fillStyle=`rgba(${BP.segLit},${0.16+0.84*v})`;
+    ctx.shadowColor=BP.segGlow; ctx.shadowBlur=13*v;
     const r=s[i]; ctx.fillRect(r[0],r[1],r[2],r[3]); ctx.shadowBlur=0; }
   ctx.restore();
 }
@@ -1032,7 +1091,7 @@ function drawButton(ctx,x,y,pressed,activeLow,dir){
   const yc=y+34, t1x=X0(20), t2x=X0(46), railx=X0(60), cx=X0(33), tipY=y+26;
   const drop=pressed?8:0, barY=y+18+drop;
   const idleLevel=activeLow?1:0, level=pressed?1-idleLevel:idleLevel;
-  const lvlCol=level?"#f0594e":"#3f7fe0", wire="#9fb4c9", node="#c9d6e3";
+  const lvlCol=level?BP.pinHi:BP.pinLo, wire=BP.btnWire, node=BP.btnNode;
   ctx.save(); ctx.lineCap="round"; ctx.lineJoin="round";
   // pin lead + rail lead (horizontal), and the contact leads up to the switch tips
   ctx.strokeStyle=wire; ctx.lineWidth=2; ctx.beginPath();
@@ -1045,16 +1104,16 @@ function drawButton(ctx,x,y,pressed,activeLow,dir){
   ctx.fillStyle=node;
   [[inX,yc,2.4],[t1x,yc,3],[t2x,yc,3]].forEach(([px,py,r])=>{ ctx.beginPath(); ctx.arc(px,py,r,0,Math.PI*2); ctx.fill(); });
   // movable contact bar — bridges the tips (closed) when pressed, lit in the level colour
-  ctx.strokeStyle=pressed?lvlCol:"#8a99aa"; ctx.lineWidth=3;
+  ctx.strokeStyle=pressed?lvlCol:BP.btnOpen; ctx.lineWidth=3;
   ctx.beginPath(); ctx.moveTo(cx-13,barY); ctx.lineTo(cx+13,barY); ctx.stroke();
   // plunger stem
-  ctx.strokeStyle="#8a99aa"; ctx.lineWidth=2;
+  ctx.strokeStyle=BP.btnOpen; ctx.lineWidth=2;
   ctx.beginPath(); ctx.moveTo(cx,barY); ctx.lineTo(cx,y+13+drop); ctx.stroke();
   // actuator cap = live 0/1 badge (colour = current driven level; drops with the press)
   const capY=y-2+drop, capW=24, capH=15;
   roundRect(ctx,cx-capW/2,capY,capW,capH,5); ctx.fillStyle=lvlCol; ctx.fill();
-  ctx.lineWidth=1.5; ctx.strokeStyle="rgba(255,255,255,.4)"; ctx.stroke();
-  ctx.fillStyle="#fff"; ctx.font="bold 11px ui-monospace, monospace"; ctx.textAlign="center"; ctx.textBaseline="middle";
+  ctx.lineWidth=1.5; ctx.strokeStyle=BP.capRing; ctx.stroke();
+  ctx.fillStyle=BP.capTx; ctx.font="bold 11px ui-monospace, monospace"; ctx.textAlign="center"; ctx.textBaseline="middle";
   ctx.fillText(String(level), cx, capY+capH/2+0.5);
   // rail symbol: GND (a press drives 0) or +V (a press drives 1)
   ctx.strokeStyle=wire; ctx.lineWidth=2;
@@ -1632,6 +1691,7 @@ window.addEventListener("resize", clampPan);
     root.setAttribute("data-theme", t);
     try{ localStorage.setItem("np_theme", t); }catch(e){}
     paintMeta();
+    applyBoardPalette();     // the canvas can't read CSS vars — swap the board palette too
   });
 })();
 

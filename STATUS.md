@@ -7,6 +7,61 @@ classroom (codename *New Proteus*). **Shipped and live:**
 
 ## Session log (newest first) — update this at the end of each session
 
+- **2026-08-15 (board labels: one badge per component, on its own pin row — no more clashes)** — Santiago
+  spotted overlapping labels on **Ejercicio 2** and asked whether the recolour had resized the LEDs or moved
+  things. It hadn't: all geometry (`arc(x,y,15)`, `p.x+dir*52`, `bw=72/bh=48`, `DISP_TOP`, `CHIP`) was
+  byte-identical, and the same collision measured **30×11px in *dark* mode too** — i.e. it predated the
+  recolour. (What *did* change perceptually: `drawLed`'s new opaque base makes an **unlit** LED read as a
+  solid circle instead of a nearly-invisible one, so LEDs look more prominent — same radius.)
+  Two real defects, both structural, found by a **geometric clash audit** over all 10 bundled boards
+  (`labs.js` + built-ins) comparing every label box against every other label **and every component body**:
+  1. **LED captions.** A labelled LED emitted *two* labels — a centred `RBn` badge plus a **transparent**
+     caption 23px above the bulb. Rows are 32px apart and a bulb is 30px tall, so the caption had nowhere to
+     go and was drawn **on the neighbouring bulb** (Ejercicio 1 ×3, Ejercicio 2 ×1) — plain text over a
+     coloured circle, unreadable.
+  2. **Button labels.** `"Pulsador · RB0"` sat *below* its glyph at `p.y+37` — 5px past the next pin row —
+     so it covered RB1's badge on Ejercicio 2.
+  **Fix (one rule, applied to both):** every component now emits **exactly one opaque badge, vertically
+  centred on its own pin row**, with the custom label folded into the pin name (`"LED · RB1"`,
+  `"Pulsador · RB0"` — the button convention, now used everywhere). Badges are anchored by their **inner
+  edge** and grow outboard via a new optional `grow` arg on `drawPinBadge` (−1/+1), instead of being centred:
+  LEDs at `p.x+dir*75` (8px clear of the bulb), buttons at `p.x+dir*164` (8px clear of the glyph's outer
+  edge). **Why this is clash-proof:** one component per pin → one badge per row; rows are 32px apart and a
+  badge is 16px tall, so neighbouring rows always keep 16px of clearance *no matter how long an instructor's
+  label is* — a wide label now grows into empty outboard space instead of sideways into the next row.
+  Unlabelled LEDs shift ~2px; the `cap` label kind is no longer emitted (its draw branch is left in place,
+  harmless).
+  **Audit result: 0 clashes on all 10 boards** (was 8 boards). The audit still flags the 7-seg
+  `com RAx` badges and the segment key as "overlapping" their display module by 11px/3px — that is
+  **deliberate and legible**: they're opaque plates sitting on the module's dark bezel, like silkscreen, and
+  the audit is purely geometric so it can't tell an opaque plate from transparent text. Left as-is.
+  Verified by headless render (Playwright, WASM core stubbed) in **both themes** on Ejercicio 1/2/3 and
+  4 Displays; inline scripts pass `vm.Script`. **Not yet re-checked on localhost in Santiago's Chrome.**
+  Pure runtime change → no wasm rebuild/embed/verify-core. *Uncommitted.*
+
+- **2026-08-14 (light board for classroom projection — theme-aware canvas palette)** — Feedback from a
+  colleague projecting SimuPIC in class: the dark-green board washes out on a projector. The board is drawn
+  on a `<canvas>`, so it couldn't follow the CSS theme vars — every colour was hardcoded for a dark backdrop.
+  Added **`BOARD_THEMES` (light/dark) + a live `BP` pointer** in `runtime/index.html`, the canvas equivalent
+  of the `[data-theme]` blocks; **all 44 colour sites** across `drawChip`/`drawLed`/`drawSeven`/`drawButton`/
+  `drawPinBadge`/`drawSegKey`/`drawSegLegend`/`drawWiring` now read from `BP`. `applyBoardPalette()` runs at
+  startup and from the theme toggle; the rAF loop repaints the next frame, so no explicit redraw. Light theme
+  `--board` is now **`#f8fafd`** (was `#0e1f17` in *both* themes); the floating zoom bar also became
+  theme-aware via new `--zbar-*` vars (it would otherwise stay dark-on-light).
+  **Deliberate:** the **DIP chip body and the 7-seg display face stay dark in both themes** — that's what the
+  real parts look like, and it's what keeps the white chip text and red segments readable when projected
+  (red-on-white would wash out, defeating the point). Everything drawn *on* the board (pin names, badges,
+  segment key, wires, button glyphs) flips to dark ink on light. `drawLed` now paints an **opaque body first**
+  (`BP.ledBase`) because the red gradient is semi-transparent at low brightness and an unlit LED would
+  otherwise vanish into a white board — on dark, `ledBase` *is* the board colour, so the old look is byte-for-byte
+  unchanged. Pin-state semantics preserved everywhere (red 1 · blue 0 · grey undefined · amber TRIS conflict),
+  just deepened for contrast on white (`#f0594e`→`#dc3a2e`, `#3f7fe0`→`#2a62d4`).
+  **Verified by headless render** (Playwright + Chromium in the agent sandbox, WASM core stubbed for the port/
+  TRIS reads `drawChip` makes — the live browser was unreachable that session): both themes screenshotted with
+  8 LEDs at mixed brightness, a lit 7-seg digit, and both button polarities; zoom-bar computed styles checked
+  per theme; inline scripts pass `vm.Script`. **Not yet re-checked on localhost in Santiago's Chrome.** Pure
+  runtime change → no wasm rebuild/embed/verify-core. *Uncommitted.*
+
 - **2026-07-27 (terminology → Debugger/Watch + collapsible zoom bar, collapsed by default)** — Two more UI
   fixes in `runtime/index.html`, no core/WASM change. (1) **Terminology:** the panel is now labelled
   **«Debugger»** (navbar toggle text + aria, dock title, close-button titles) and the debugger view formerly
