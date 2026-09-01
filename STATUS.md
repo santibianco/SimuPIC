@@ -7,6 +7,39 @@ classroom (codename *New Proteus*). **Shipped and live:**
 
 ## Session log (newest first) — update this at the end of each session
 
+- **2026-09-01 (manual embebido + set de instrucciones on demand)** — Santiago preguntó cómo meter el manual de
+  usuario dentro del simulador y cómo mostrar «las primeras columnas» de la tabla 15-2 del datasheet. Elegimos la
+  variante liviana: **el manual entra como texto, sin las 23 capturas** — son fotos de la pantalla que el alumno está
+  mirando, y pesaban 3,5 MB contra los 247 KB de toda la app. Tres piezas nuevas:
+  1. **`docs/manual.md` es ahora la fuente única del manual** (extraído del docx con un parser de `word/document.xml`
+     que preserva headings, listas, tablas y los recuadros). Los epígrafes de las figuras quedaron plegados dentro de
+     `<!-- figura N · … -->`, para que un manual impreso los conserve y la ayuda embebida no muestre pies de fotos que
+     no están. **Ojo: `docs/SimuPIC-Manual-de-usuario.docx` ya NO es la fuente** — quedó atrás y hay que regenerarlo
+     desde el .md la próxima vez que se reparta.
+  2. **`node build-help.js` genera `runtime/help.js`** (25 KB, 12 secciones) desde ese .md. La página sigue sin build
+     step: `help.js` se commitea, igual que el core en base64. El drawer tiene índice, scroll-spy y un buscador que
+     **ignora tildes** (fold de a un carácter, así los offsets siguen sirviendo para envolver en `<mark>`).
+  3. **`runtime/isa.js`** — las 35 instrucciones con mnemónico, operandos, descripción en castellano, la Operation del
+     datasheet, ciclos, flags, encoding de 14 bits y las notas 1-3. **`node test-isa.js` la cruza contra `OPS` de
+     `asm.js`**: mismos 35 mnemónicos, bits fijos del encoding idénticos a la base del ensamblador y forma de los
+     operandos coherente. Verde.
+  **UI:** dos botones nuevos en la barra (`#helpBtn`, `#isaBtn`) → drawer del manual y modal de la tabla (filtrable por
+  mnemónico, descripción o flag), más **tooltips al pasar el mouse** sobre un mnemónico en el editor y en la vista
+  Programa. Detalle no obvio: `.edHl` tiene `pointer-events:none`, así que `elementsFromPoint` no devolvía los tokens;
+  se rehabilitan sólo en `.edHl .tk-key` (el textarea sigue arriba y se queda todos los eventos reales). El scroll-spy
+  usa rects y no `offsetTop`, porque `#helpDoc` no está posicionado y `offsetTop` medía contra el panel.
+  `sw.js` → **simupic-v4**, con `isa.js` y `help.js` en el SHELL (offline). Si esos dos archivos faltan, los botones se
+  esconden solos y la app arranca igual — verificado.
+  **Corrección de contenido:** la tabla «Cómo leer la placa» decía «Rojo = 1, gris = 0 o entrada», anterior al
+  recoloreo del 2026-08-14. Ahora dice rojo 1 · azul 0 · gris indefinido · ámbar conflicto de TRIS, que es lo que
+  `drawChip` realmente pinta. Y el dato de que los SFR van en violeta hasta 0x20 (que sólo vivía en un epígrafe) pasó
+  al cuerpo de 8.4.
+  Verificado con Playwright headless contra `runtime/` servido local: 30 chequeos en verde (manual, buscador, modal,
+  filtros, tooltips, foco y Esc), capturas en ambos temas y en 390/360 px — la barra superior entra sin desbordar.
+  **No verificado en el Chrome de Santiago: `localhost:8080` no respondía en esta sesión.** Cambio puro de runtime →
+  no hace falta rebuild del wasm. *Sin commitear.*
+
+
 - **2026-08-15 (board labels: one badge per component, on its own pin row — no more clashes)** — Santiago
   spotted overlapping labels on **Ejercicio 2** and asked whether the recolour had resized the LEDs or moved
   things. It hadn't: all geometry (`arc(x,y,15)`, `p.x+dir*52`, `bw=72/bh=48`, `DISP_TOP`, `CHIP`) was

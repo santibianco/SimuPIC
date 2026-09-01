@@ -202,6 +202,9 @@
   .edHl{ position:absolute; inset:0; margin:0; overflow:hidden; pointer-events:none; box-sizing:border-box;
     padding:10px 12px; white-space:pre; color:var(--text); background:transparent; }
   .edHl code{ font:inherit; }
+  /* el layer no recibe eventos, pero los mnemónicos sí: así elementsFromPoint los encuentra
+     debajo del textarea y el tooltip de instrucción puede dispararse al pasar el mouse. */
+  .edHl .tk-key{ pointer-events:auto; }
   .edSrc{ position:absolute; inset:0; width:100%; height:100%; box-sizing:border-box; resize:none;
     margin:0; padding:10px 12px; border:0; outline:none; white-space:pre; overflow:auto;
     background:transparent; color:transparent; caret-color:var(--text); }
@@ -337,6 +340,142 @@
   /* ASM editor, docked: the textarea fills the block height */
   #dockEditor .edWrap{ flex:1 1 auto; min-height:120px; }
 
+
+  /* ===== overlays: manual (drawer) + instruction set (modal) ===== */
+  .barbtn.hidden{ display:none; }
+  .ovl{ position:fixed; inset:0; z-index:60; display:none; }
+  .ovl.open{ display:block; }
+  .ovlScrim{ position:absolute; inset:0; background:rgba(6,9,14,.52); backdrop-filter:blur(2px);
+    animation:ovlFade .16s ease; }
+  @keyframes ovlFade{ from{ opacity:0 } to{ opacity:1 } }
+  @keyframes ovlSlide{ from{ transform:translateX(26px); opacity:.4 } to{ transform:none; opacity:1 } }
+  @keyframes ovlPop{ from{ transform:translateY(10px) scale(.99); opacity:.5 } to{ transform:none; opacity:1 } }
+  @media (prefers-reduced-motion: reduce){ .ovlScrim, .helpPanel, .isaPanel{ animation:none !important; } }
+
+  /* --- shared chrome --- */
+  .ovlHead{ display:flex; align-items:center; gap:10px; padding:14px 18px; border-bottom:1px solid var(--border);
+    background:var(--surface); flex:0 0 auto; }
+  .ovlTitle{ font-size:15px; font-weight:700; letter-spacing:.01em; }
+  .ovlSub{ font-size:11.5px; color:var(--text-faint); }
+  .ovlClose{ width:34px; height:34px; display:grid; place-items:center; border-radius:10px; flex:0 0 auto;
+    background:var(--surface-2); border:1px solid var(--border); color:var(--text-dim); font-size:16px; line-height:1; cursor:pointer; }
+  .ovlClose:hover{ background:var(--surface-3); color:var(--text); }
+  .ovlSearch{ position:relative; flex:1 1 auto; min-width:0; max-width:340px; }
+  .ovlSearch input{ width:100%; height:36px; padding:0 30px 0 32px; border-radius:11px; font:inherit; font-size:13px;
+    background:var(--surface-2); border:1px solid var(--border); color:var(--text); }
+  .ovlSearch input:focus{ outline:none; border-color:var(--accent); background:var(--surface); }
+  .ovlSearch svg{ position:absolute; left:10px; top:50%; transform:translateY(-50%); color:var(--text-faint); pointer-events:none; }
+  .ovlSearchX{ position:absolute; right:5px; top:50%; transform:translateY(-50%); width:24px; height:24px; border:0;
+    border-radius:7px; background:transparent; color:var(--text-faint); font-size:14px; line-height:1; cursor:pointer; display:none; }
+  .ovlSearchX:hover{ background:var(--surface-3); color:var(--text); }
+  .ovlSearch.filled .ovlSearchX{ display:block; }
+  .ovlEmpty{ padding:26px 4px; color:var(--text-faint); font-size:13px; text-align:center; }
+  mark{ background:var(--accent-soft); color:inherit; border-radius:3px; padding:0 1px; }
+
+  /* --- manual drawer --- */
+  .helpPanel{ position:absolute; top:0 ; right:0; bottom:0; width:min(940px, 96vw);
+    display:flex; flex-direction:column; background:var(--surface); border-left:1px solid var(--border);
+    box-shadow:var(--shadow); animation:ovlSlide .18s ease; }
+  .helpBody{ flex:1 1 auto; min-height:0; display:grid; grid-template-columns:236px minmax(0,1fr); }
+  .helpNav{ border-right:1px solid var(--border); background:var(--surface-2); overflow:auto; padding:10px 8px; }
+  .helpNav a{ display:block; padding:7px 10px; border-radius:9px; font-size:13px; color:var(--text-dim);
+    text-decoration:none; line-height:1.35; }
+  .helpNav a:hover{ background:var(--surface-3); color:var(--text); }
+  .helpNav a.on{ background:var(--accent-soft); color:var(--accent); font-weight:600; }
+  .helpNav a .hnum{ color:var(--text-faint); font-variant-numeric:tabular-nums; margin-right:6px; }
+  .helpNav a.on .hnum{ color:inherit; }
+  .helpNav .hsub{ padding:5px 10px 5px 26px; font-size:12px; }
+  .helpDoc{ overflow:auto; padding:22px 30px 60px; scroll-behavior:smooth; }
+  .helpDoc .hsec{ max-width:70ch; padding-bottom:10px; }
+  .helpDoc .hsec + .hsec{ margin-top:34px; border-top:1px solid var(--border-soft); padding-top:26px; }
+  .helpDoc h2{ font-size:19px; font-weight:700; margin:0 0 12px; scroll-margin-top:14px; }
+  .helpDoc h2 .hnum{ color:var(--accent); }
+  .helpDoc h3{ font-size:14.5px; font-weight:700; margin:24px 0 8px; scroll-margin-top:14px; }
+  .helpDoc h4{ font-size:13px; font-weight:700; color:var(--text-dim); margin:18px 0 6px; }
+  .helpDoc p{ margin:0 0 11px; font-size:14px; line-height:1.62; }
+  .helpDoc ul{ margin:0 0 12px; padding-left:20px; }
+  .helpDoc li{ font-size:14px; line-height:1.6; margin-bottom:5px; }
+  .helpDoc code{ font-family:ui-monospace, monospace; font-size:12.5px; background:var(--surface-2);
+    border:1px solid var(--border-soft); border-radius:5px; padding:1px 5px; }
+  .helpDoc a{ color:var(--accent); }
+  .htableWrap{ overflow-x:auto; margin:0 0 14px; }
+  .htable{ border-collapse:collapse; width:100%; font-size:13.2px; }
+  .htable th, .htable td{ text-align:left; vertical-align:top; padding:8px 11px; border-bottom:1px solid var(--border-soft); line-height:1.5; }
+  .htable thead th{ font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--text-faint);
+    background:var(--surface-2); border-bottom:1px solid var(--border); }
+  .htable tbody tr:hover{ background:var(--surface-2); }
+  .hnote{ margin:0 0 14px; padding:11px 14px; border-radius:12px; background:var(--accent-soft);
+    border:1px solid transparent; border-left:3px solid var(--accent); }
+  .hnoteT{ font-size:12.5px; font-weight:700; color:var(--accent); margin-bottom:5px; }
+  .hnote p{ margin:0 0 7px; font-size:13.4px; line-height:1.55; }
+  .hnote p:last-child{ margin:0; }
+
+  /* --- instruction-set modal --- */
+  .isaPanel{ position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+    width:min(1040px, 94vw); max-height:88vh; display:flex; flex-direction:column;
+    background:var(--surface); border:1px solid var(--border); border-radius:18px; box-shadow:var(--shadow);
+    overflow:hidden; animation:ovlPop .16s ease; }
+  .isaBody{ flex:1 1 auto; min-height:0; overflow:auto; padding:0 4px 4px; }
+  .isaGroup{ font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--text-faint);
+    padding:16px 16px 7px; }
+  .isaTable{ width:100%; border-collapse:collapse; font-size:13px; }
+  .isaTable th{ position:sticky; top:0; z-index:1; text-align:left; font-size:10.5px; text-transform:uppercase;
+    letter-spacing:.05em; color:var(--text-faint); background:var(--surface-2); padding:7px 12px;
+    border-bottom:1px solid var(--border); }
+  .isaTable td{ padding:8px 12px; border-bottom:1px solid var(--border-soft); vertical-align:top; line-height:1.45; }
+  .isaTable tbody tr:hover{ background:var(--surface-2); }
+  .isaM{ font-family:ui-monospace, monospace; font-weight:700; color:var(--tok-key); white-space:nowrap; }
+  .isaO{ font-family:ui-monospace, monospace; color:var(--text-faint); font-weight:400; }
+  .isaOp{ display:block; font-family:ui-monospace, monospace; font-size:11.5px; color:var(--text-faint); margin-top:3px; }
+  .isaC{ text-align:center; font-variant-numeric:tabular-nums; white-space:nowrap; color:var(--text-dim); }
+  .isaF{ white-space:nowrap; font-family:ui-monospace, monospace; font-size:12px; color:var(--purple); }
+  .isaE{ font-family:ui-monospace, monospace; font-size:11.5px; color:var(--code-word); white-space:nowrap; }
+  .isaN{ color:var(--text-faint); font-size:11px; vertical-align:super; cursor:help; }
+  .isaFoot{ flex:0 0 auto; border-top:1px solid var(--border); background:var(--surface-2); padding:10px 16px;
+    font-size:11.8px; color:var(--text-dim); line-height:1.55; max-height:34vh; overflow:auto; }
+  .isaFoot summary{ cursor:pointer; font-weight:600; color:var(--text-dim); }
+  .isaFoot summary:hover{ color:var(--text); }
+  .isaFoot ol, .isaFoot ul{ margin:8px 0 0; padding-left:20px; }
+  .isaFoot li{ margin-bottom:5px; }
+  .isaFoot .isaSrc{ display:block; margin-top:9px; color:var(--text-faint); font-size:11px; }
+  .isaFoot code{ font-family:ui-monospace, monospace; background:var(--surface); border:1px solid var(--border-soft);
+    border-radius:5px; padding:1px 5px; }
+
+  /* --- instruction tooltip (editor + program view) --- */
+  .isaTip{ position:fixed; z-index:80; max-width:330px; pointer-events:none; opacity:0; visibility:hidden;
+    transform:translateY(3px); transition:opacity .1s ease, transform .1s ease, visibility .1s;
+    background:var(--surface); border:1px solid var(--border); border-radius:12px; box-shadow:var(--shadow);
+    padding:10px 12px; font-family:system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .isaTip.on{ opacity:1; visibility:visible; transform:none; }
+  .isaTipH{ font-family:ui-monospace, monospace; font-size:12.5px; font-weight:700; color:var(--tok-key); margin-bottom:4px; }
+  .isaTipH span{ color:var(--text-faint); font-weight:400; }
+  .isaTipD{ font-size:12.5px; line-height:1.45; color:var(--text); }
+  .isaTipM{ margin-top:7px; padding-top:6px; border-top:1px solid var(--border-soft);
+    font-size:11.5px; color:var(--text-dim); display:flex; gap:12px; flex-wrap:wrap; }
+  .isaTipM b{ color:var(--text); font-weight:600; }
+
+  /* --- overlays on small screens --- */
+  @media (max-width: 860px){
+    .helpPanel{ width:100%; border-left:0; }
+    .helpBody{ grid-template-columns:minmax(0,1fr); }
+    .helpNav{ border-right:0; border-bottom:1px solid var(--border); max-height:132px; }
+    .helpDoc{ padding:18px 16px 50px; }
+    .ovlSearch{ max-width:none; }
+    .isaPanel{ width:100%; max-width:none; max-height:100%; height:100%; border-radius:0; border:0; top:0; left:0; transform:none; }
+    .isaTable .colE{ display:none; }                   /* the encoding is desktop-only: the description matters more */
+  }
+  @media (max-width: 560px){
+    /* en el teléfono el encabezado se parte en dos filas: título + ✕ arriba, buscador abajo */
+    .ovlHead{ flex-wrap:wrap; padding:11px 14px; gap:8px 10px; }
+    .ovlHead .ovlSearch{ order:3; flex-basis:100%; max-width:none; }
+    .ovlSub{ display:none; }
+    .ovlTitle{ font-size:15px; }
+  }
+  @media (max-width: 520px){
+    .isaTable .isaOp{ display:none; }
+    .isaTable td, .isaTable th{ padding:7px 10px; }
+  }
+
   /* ===== responsive ===== */
   /* below 1200px: debugger un-docks to a full-width panel under the stage; single pane (dual-view is desktop-only) */
   @media (max-width: 1200px){
@@ -415,6 +554,14 @@
         <path d="M22 13h-4"/><path d="M17.2 17c2.1.1 3.8 1.9 3.8 4"/>
       </svg>
       <span class="barbtn-tx">Debugger</span>
+    </button>
+    <button id="isaBtn" class="barbtn" title="Ver el set de instrucciones del PIC16F628A" aria-label="Set de instrucciones" aria-haspopup="dialog" aria-expanded="false">
+      <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4.5" width="17" height="15" rx="2"/><path d="M3.5 9.5h17M9 9.5V19.5"/></svg>
+      <span class="barbtn-tx">Instrucciones</span>
+    </button>
+    <button id="helpBtn" class="barbtn" title="Abrir el manual de usuario" aria-label="Manual de usuario" aria-haspopup="dialog" aria-expanded="false">
+      <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H10a2.5 2.5 0 0 1 2 1v13a2.5 2.5 0 0 0-2-1H5.5A1.5 1.5 0 0 1 4 15.5z"/><path d="M20 5.5A1.5 1.5 0 0 0 18.5 4H14a2.5 2.5 0 0 0-2 1v13a2.5 2.5 0 0 1 2-1h4.5a1.5 1.5 0 0 0 1.5-1.5z"/></svg>
+      <span class="barbtn-tx">Manual</span>
     </button>
     <button id="themeBtn" class="iconbtn" title="Cambiar tema (claro / oscuro)" aria-label="Cambiar tema">
       <svg class="icon-sun" viewBox="0 0 24 24" width="19" height="19" aria-hidden="true"><circle cx="12" cy="12" r="4" fill="currentColor"/><path d="M12 2.4v2.5M12 19.1v2.5M2.4 12h2.5M19.1 12h2.5M5.2 5.2l1.8 1.8M17 17l1.8 1.8M18.8 5.2L17 7M7 17l-1.8 1.8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
@@ -556,10 +703,64 @@
 
 <!-- Optional embedded core: `core-wasm.js` defines window.NP_WASM_BASE64 so the
      page is self-contained and you only pick a .hex. Missing file is harmless. -->
+
+  <!-- ===== manual de usuario (generado desde docs/manual.md) ===== -->
+  <div class="ovl" id="helpOvl" role="dialog" aria-modal="true" aria-labelledby="helpTitle" hidden>
+    <div class="ovlScrim" data-close></div>
+    <div class="helpPanel">
+      <div class="ovlHead">
+        <div>
+          <div class="ovlTitle" id="helpTitle">Manual de usuario</div>
+          <div class="ovlSub">SimuPIC · PIC16F628A</div>
+        </div>
+        <div class="appbar-spacer"></div>
+        <div class="ovlSearch" id="helpSearchWrap">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6"/><path d="m15 15 4.5 4.5"/></svg>
+          <input id="helpSearch" type="search" placeholder="Buscar en el manual…" aria-label="Buscar en el manual" autocomplete="off">
+          <button class="ovlSearchX" id="helpSearchX" type="button" aria-label="Limpiar la búsqueda">✕</button>
+        </div>
+        <button class="ovlClose" data-close title="Cerrar (Esc)" aria-label="Cerrar el manual">✕</button>
+      </div>
+      <div class="helpBody">
+        <nav class="helpNav" id="helpNav" aria-label="Secciones del manual"></nav>
+        <div class="helpDoc" id="helpDoc" tabindex="0"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== set de instrucciones (datos en isa.js) ===== -->
+  <div class="ovl" id="isaOvl" role="dialog" aria-modal="true" aria-labelledby="isaTitle" hidden>
+    <div class="ovlScrim" data-close></div>
+    <div class="isaPanel">
+      <div class="ovlHead">
+        <div>
+          <div class="ovlTitle" id="isaTitle">Set de instrucciones</div>
+          <div class="ovlSub">Las 35 instrucciones del PIC16F628A</div>
+        </div>
+        <div class="appbar-spacer"></div>
+        <div class="ovlSearch" id="isaSearchWrap">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6"/><path d="m15 15 4.5 4.5"/></svg>
+          <input id="isaSearch" type="search" placeholder="Filtrar: BTFSS, saltea, Z…" aria-label="Filtrar instrucciones" autocomplete="off">
+          <button class="ovlSearchX" id="isaSearchX" type="button" aria-label="Limpiar el filtro">✕</button>
+        </div>
+        <button class="ovlClose" data-close title="Cerrar (Esc)" aria-label="Cerrar el set de instrucciones">✕</button>
+      </div>
+      <div class="isaBody" id="isaBody" tabindex="0"></div>
+      <details class="isaFoot" id="isaFoot">
+        <summary>Notas y convenciones</summary>
+        <div id="isaFootBody"></div>
+      </details>
+    </div>
+  </div>
+
+  <div class="isaTip" id="isaTip" role="tooltip" aria-hidden="true"></div>
+
 <script src="core-wasm.js" onerror="window.__npNoEmbed=true"></script>
 <script src="labs.js" onerror="window.__npNoLabs=true"></script>
 <script src="asm.js" onerror="window.__npNoAsm=true"></script>
 <script src="editor.js" onerror="window.__npNoEditor=true"></script>
+<script src="isa.js" onerror="window.__npNoIsa=true"></script>
+<script src="help.js" onerror="window.__npNoHelp=true"></script>
 <script>
 "use strict";
 
@@ -1616,6 +1817,7 @@ stageEl.addEventListener("drop", async (e)=>{ e.preventDefault(); stageEl.classL
 
 // ===== keyboard: space toggles play / pause =====
 window.addEventListener("keydown",(e)=>{
+  if(window.__npOvlOpen && window.__npOvlOpen()) return;            // el manual / la tabla están abiertos
   if(e.code==="Space" && !/^(INPUT|SELECT|TEXTAREA|BUTTON)$/.test(e.target.tagName)){
     if(!playPauseBtn.disabled){ e.preventDefault(); togglePlay(); }
   }
@@ -1693,6 +1895,218 @@ window.addEventListener("resize", clampPan);
     paintMeta();
     applyBoardPalette();     // the canvas can't read CSS vars — swap the board palette too
   });
+})();
+
+// ===== manual de usuario + set de instrucciones =====
+// Two overlays over one pattern. The manual is generated data (help.js ← docs/manual.md);
+// the instruction table is isa.js, which also feeds the hover tooltips in the code editor
+// and in the debugger's Program view. Both degrade to a hidden button if their file is missing.
+(function(){
+  const HELP = window.NP_HELP || null, ISA = window.NP_ISA || null;
+  const helpBtn = document.getElementById("helpBtn"), isaBtn = document.getElementById("isaBtn");
+  const helpOvl = document.getElementById("helpOvl"), isaOvl = document.getElementById("isaOvl");
+  if(!HELP && helpBtn) helpBtn.classList.add("hidden");
+  if(!ISA && isaBtn) isaBtn.classList.add("hidden");
+
+  // accent- and case-insensitive folding, one output char per input char so
+  // match offsets still line up with the original string (needed to <mark> it).
+  const fold = (s) => { let o=""; for(const c of String(s)){
+      const f=c.normalize("NFD").replace(/[̀-ͯ]/g,""); o += (f[0]||c).toLowerCase(); } return o; };
+  const esc = (s) => String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+
+  // ---- overlay open / close (scrim, Esc, focus) ----
+  let current = null, lastFocus = null;
+  function openOvl(ovl, btn, focusEl){
+    if(current) closeOvl();
+    current = { ovl, btn };
+    lastFocus = document.activeElement;
+    ovl.hidden = false; ovl.classList.add("open");
+    document.body.classList.add("ovl-open");
+    document.body.style.overflow = "hidden";
+    if(btn) btn.setAttribute("aria-expanded","true");
+    setTimeout(()=>{ (focusEl || ovl.querySelector(".ovlClose")).focus(); }, 0);
+  }
+  function closeOvl(){
+    if(!current) return;
+    const { ovl, btn } = current; current = null;
+    ovl.classList.remove("open"); ovl.hidden = true;
+    document.body.classList.remove("ovl-open");
+    document.body.style.overflow = "";
+    if(btn) btn.setAttribute("aria-expanded","false");
+    if(lastFocus && lastFocus.focus) lastFocus.focus();
+  }
+  window.__npOvlOpen = () => !!current;                 // the space-bar shortcut checks this
+  for(const ovl of [helpOvl, isaOvl]) if(ovl)
+    ovl.addEventListener("click",(e)=>{ if(e.target.hasAttribute("data-close")) closeOvl(); });
+  window.addEventListener("keydown",(e)=>{
+    if(!current) return;
+    if(e.key === "Escape"){ e.preventDefault(); closeOvl(); return; }
+    if(e.key !== "Tab") return;                          // keep focus inside the dialog
+    const f = current.ovl.querySelectorAll('button:not([disabled]), input, [href], [tabindex]:not([tabindex="-1"])');
+    if(!f.length) return;
+    const first = f[0], last = f[f.length-1];
+    if(e.shiftKey && document.activeElement === first){ e.preventDefault(); last.focus(); }
+    else if(!e.shiftKey && document.activeElement === last){ e.preventDefault(); first.focus(); }
+  });
+
+  // shared search-box plumbing: an ✕ that shows when there's text
+  function wireSearch(wrapId, inputId, clearId, onChange){
+    const wrap = document.getElementById(wrapId), input = document.getElementById(inputId), x = document.getElementById(clearId);
+    if(!input) return null;
+    const sync = () => { wrap.classList.toggle("filled", !!input.value); onChange(input.value.trim()); };
+    input.addEventListener("input", sync);
+    x.addEventListener("click", ()=>{ input.value=""; sync(); input.focus(); });
+    return input;
+  }
+
+  // ---- the manual ----
+  if(HELP && helpBtn){
+    const nav = document.getElementById("helpNav"), doc = document.getElementById("helpDoc");
+    const plain = (h) => h.replace(/<[^>]+>/g," ").replace(/\s+/g," ");
+    const hay = HELP.sections.map(s => fold((s.n ? s.n+". " : "") + s.t + " " + plain(s.h)));
+
+    function paint(q){
+      const fq = fold(q), on = HELP.sections.map((s,i) => !fq || hay[i].includes(fq));
+      nav.innerHTML = HELP.sections.map((s,i) => on[i]
+        ? `<a href="#${s.id}" data-go="${s.id}"><span class="hnum">${s.n}</span>${esc(s.t)}</a>` : "").join("");
+      doc.innerHTML = HELP.sections.map((s,i) => on[i]
+        ? `<section class="hsec" id="${s.id}"><h2><span class="hnum">${s.n}.</span> ${esc(s.t)}</h2>${s.h}</section>` : "").join("")
+        || `<div class="ovlEmpty">No hay nada en el manual que diga «${esc(q)}».</div>`;
+      if(fq) mark(doc, fq);
+      doc.scrollTop = 0; spy();
+    }
+
+    // wrap every occurrence of the folded query in <mark>, text node by text node
+    function mark(root, fq){
+      const walk = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+      const hits = []; let n;
+      while((n = walk.nextNode())){
+        if(n.parentNode.nodeName === "MARK" || !n.nodeValue.trim()) continue;
+        if(fold(n.nodeValue).includes(fq)) hits.push(n);
+      }
+      for(const node of hits){
+        const txt = node.nodeValue, f = fold(txt), frag = document.createDocumentFragment();
+        let at = 0, k;
+        while((k = f.indexOf(fq, at)) !== -1){
+          if(k > at) frag.appendChild(document.createTextNode(txt.slice(at, k)));
+          const m = document.createElement("mark"); m.textContent = txt.slice(k, k + fq.length);
+          frag.appendChild(m); at = k + fq.length;
+        }
+        frag.appendChild(document.createTextNode(txt.slice(at)));
+        node.parentNode.replaceChild(frag, node);
+      }
+    }
+
+    function spy(){                                       // highlight the section being read
+      const secs = doc.querySelectorAll(".hsec"), edge = doc.getBoundingClientRect().top + 90;
+      let id = secs.length ? secs[0].id : null;
+      if(doc.clientHeight) for(const s of secs){ if(s.getBoundingClientRect().top <= edge) id = s.id; else break; }
+      for(const a of nav.querySelectorAll("a")) a.classList.toggle("on", a.dataset.go === id);
+    }
+
+    nav.addEventListener("click",(e)=>{
+      const a = e.target.closest("a[data-go]"); if(!a) return;
+      e.preventDefault();
+      const el = document.getElementById(a.dataset.go); if(!el) return;
+      doc.scrollTo({ top: doc.scrollTop + el.getBoundingClientRect().top - doc.getBoundingClientRect().top - 10, behavior: "smooth" });
+    });
+    let ticking = false;
+    doc.addEventListener("scroll", ()=>{ if(ticking) return; ticking = true;
+      requestAnimationFrame(()=>{ ticking = false; spy(); }); });
+
+    const input = wireSearch("helpSearchWrap","helpSearch","helpSearchX", paint);
+    paint("");
+    helpBtn.addEventListener("click", ()=>{ openOvl(helpOvl, helpBtn, input); requestAnimationFrame(spy); });
+  }
+
+  // ---- the instruction set ----
+  if(ISA && isaBtn){
+    const body = document.getElementById("isaBody"), foot = document.getElementById("isaFootBody");
+    const noteRef = (n) => n.length ? `<span class="isaN" title="${esc(n.map(k=>ISA.NOTES[k]).join(" "))}">${n.join(",")}</span>` : "";
+    const hay = new Map(ISA.ISA.map(i => [i, fold([i.m,i.o,i.d,i.op,i.s,i.e].join(" "))]));
+
+    function paint(q){
+      const fq = fold(q), rows = ISA.ISA.filter(i => !fq || hay.get(i).includes(fq));
+      if(!rows.length){ body.innerHTML = `<div class="ovlEmpty">Ninguna instrucción coincide con «${esc(q)}».</div>`; return; }
+      let html = "";
+      for(const g of Object.keys(ISA.GROUPS)){
+        const gr = rows.filter(i => i.g === g); if(!gr.length) continue;
+        html += `<div class="isaGroup">${esc(ISA.GROUPS[g])}</div>`;
+        html += '<table class="isaTable"><thead><tr>' +
+          '<th>Instrucción</th><th>Qué hace</th><th class="isaC">Ciclos</th><th>Flags</th><th class="colE">Código</th>' +
+          '</tr></thead><tbody>';
+        for(const i of gr) html +=
+          `<tr><td class="isaM">${esc(i.m)}${i.o ? ` <span class="isaO">${esc(i.o)}</span>` : ""}</td>` +
+          `<td>${esc(i.d)}${noteRef(i.n)}<span class="isaOp">${esc(i.op)}</span></td>` +
+          `<td class="isaC">${esc(i.c)}</td>` +
+          `<td class="isaF">${i.s ? esc(i.s) : "—"}</td>` +
+          `<td class="isaE colE">${esc(i.e)}</td></tr>`;
+        html += "</tbody></table>";
+      }
+      body.innerHTML = html;
+      body.scrollTop = 0;
+    }
+
+    foot.innerHTML =
+      "<ul>" + ISA.FIELDS.map(([k,v]) => `<li><code>${esc(k)}</code> — ${esc(v)}</li>`).join("") + "</ul>" +
+      "<ol>" + Object.keys(ISA.NOTES).map(k => `<li>${esc(ISA.NOTES[k])}</li>`).join("") + "</ol>" +
+      `<span class="isaSrc">Fuente: ${esc(ISA.source)}. Los encodings coinciden con el ensamblador de SimuPIC (<code>node test-isa.js</code>).</span>`;
+
+    const input = wireSearch("isaSearchWrap","isaSearch","isaSearchX", paint);
+    paint("");
+    isaBtn.addEventListener("click", ()=> openOvl(isaOvl, isaBtn, input));
+  }
+
+  // ---- hover tooltips: code editor + debugger Program view ----
+  if(ISA && window.matchMedia && window.matchMedia("(hover: hover)").matches){
+    const tip = document.getElementById("isaTip");
+    let shown = null;
+
+    function show(inst, x, y){
+      if(shown !== inst){
+        shown = inst;
+        tip.innerHTML =
+          `<div class="isaTipH">${esc(inst.m)}${inst.o ? ` <span>${esc(inst.o)}</span>` : ""}</div>` +
+          `<div class="isaTipD">${esc(inst.d)}</div>` +
+          `<div class="isaTipM"><span>Ciclos <b>${esc(inst.c)}</b></span>` +
+          `<span>Flags <b>${inst.s ? esc(inst.s) : "—"}</b></span></div>`;
+        tip.classList.add("on"); tip.setAttribute("aria-hidden","false");
+      }
+      const w = tip.offsetWidth, h = tip.offsetHeight, pad = 10;
+      let left = x + 14, top = y + 18;
+      if(left + w + pad > innerWidth) left = Math.max(pad, x - w - 14);
+      if(top + h + pad > innerHeight) top = Math.max(pad, y - h - 14);
+      tip.style.left = left + "px"; tip.style.top = top + "px";
+    }
+    function hide(){ if(!shown) return; shown = null; tip.classList.remove("on"); tip.setAttribute("aria-hidden","true"); }
+
+    // The editor's highlight layer sits *under* a transparent textarea, so the textarea
+    // eats the mouse events — elementsFromPoint digs the coloured token out from below.
+    const edSrc = document.getElementById("edSrc");
+    if(edSrc){
+      edSrc.addEventListener("mousemove",(e)=>{
+        const tk = document.elementsFromPoint(e.clientX, e.clientY).find(el => el.classList && el.classList.contains("tk-key"));
+        const inst = tk ? ISA.get(tk.textContent) : null;
+        inst ? show(inst, e.clientX, e.clientY) : hide();
+      });
+      edSrc.addEventListener("mouseleave", hide);
+      edSrc.addEventListener("mousedown", hide);
+      edSrc.addEventListener("scroll", hide);
+    }
+
+    const panes = document.getElementById("dbgPanes");
+    if(panes){
+      panes.addEventListener("mousemove",(e)=>{
+        const pm = e.target.closest && e.target.closest(".progRow .pm");
+        const inst = pm ? ISA.get((pm.textContent.trim().match(/^[A-Za-z]+/) || [""])[0]) : null;
+        inst ? show(inst, e.clientX, e.clientY) : hide();
+      });
+      panes.addEventListener("mouseleave", hide);
+      panes.addEventListener("mousedown", hide);
+      panes.addEventListener("scroll", hide, true);
+    }
+    window.addEventListener("blur", hide);
+  }
 })();
 
 // ===== embedded-core auto-load =====
