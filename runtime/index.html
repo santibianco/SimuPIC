@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta name="theme-color" content="#eef1f8" />
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; manifest-src 'self'; worker-src 'self'; base-uri 'none'; object-src 'none'; form-action 'none'" />
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://simupic.goatcounter.com; connect-src 'self' https://simupic.goatcounter.com; manifest-src 'self'; worker-src 'self'; base-uri 'none'; object-src 'none'; form-action 'none'" />
 <link rel="manifest" href="manifest.json" />
 <link rel="icon" type="image/svg+xml" href="icon.svg" />
 <title>SimuPIC — PIC16F628A simulator</title>
@@ -761,6 +761,9 @@
 <script src="editor.js" onerror="window.__npNoEditor=true"></script>
 <script src="isa.js" onerror="window.__npNoIsa=true"></script>
 <script src="help.js" onerror="window.__npNoHelp=true"></script>
+<!-- Estadísticas de uso (GoatCounter): sin cookies ni datos personales. count.js es una copia local
+     (mismo origen, así el CSP no habilita scripts externos). Ver DEPLOY.md → "Usage statistics". -->
+<script data-goatcounter="https://simupic.goatcounter.com/count" data-goatcounter-settings='{"allow_frame": true}' async src="count.js"></script>
 <script>
 "use strict";
 
@@ -1406,6 +1409,11 @@ function coreReady(){ populateLabs(); enable(["labSelect","stepBtn","step10","st
 function setBoardLoaded(on){ boardLoaded=on; if(stageEl) stageEl.classList.toggle("empty", !on);
   const b=document.getElementById("edBuild"); if(b){ b.disabled=!on; b.title=on?"":"Elegí una placa antes de compilar"; } }
 function setDiagram(d){ components=build(d); setBoardLoaded(true); resetView(); }
+// ===== estadísticas de uso (GoatCounter): contadores anónimos de eventos — nunca se envía el programa, el .hex ni el nombre del archivo =====
+function track(path, title){ try{ if(window.goatcounter && goatcounter.count) goatcounter.count({ path:path, title:title||"", event:true }); }catch(e){} }
+// trackOnce(): «esta sesión usó la función X» — un hit por carga de página y por ruta, así el total ≈ sesiones que la usaron
+const trackedOnce=new Set();
+function trackOnce(path, title){ if(trackedOnce.has(path)) return; trackedOnce.add(path); track(path, title); }
 function afterHex(ok,name){ if(!ok){ setStatus("No se pudo leer "+name,"err"); return; }
   X.np_reset(); for(const c of components) if(c.idle) c.idle();
   enable(["playPauseBtn","stopBtn"],true);
@@ -1417,7 +1425,7 @@ document.getElementById("wasmFile").addEventListener("change", async (e)=>{
   try{ await instantiate(await f.arrayBuffer()); coreReady(); setStatus("Núcleo cargado ✓ — elegí una placa o cargá un .hex.","ok"); }
   catch(err){ setStatus("Error al cargar el WASM: "+err,"err"); }
 });
-document.getElementById("hexFile").addEventListener("change", async (e)=>{ const f=e.target.files[0]; if(!f||!X) return; const ok=loadHex(await f.text()); afterHex(ok,f.name); if(ok) clearEditorSource(); });
+document.getElementById("hexFile").addEventListener("change", async (e)=>{ const f=e.target.files[0]; if(!f||!X) return; const ok=loadHex(await f.text()); afterHex(ok,f.name); if(ok){ clearEditorSource(); track("cargar-hex","archivo"); } });
 // Boards are set up by the teacher (via labs.js / the authoring tool), not loaded
 // ad-hoc by students — so there is no diagram upload here, only the "Placa" dropdown.
 function setClock(str){ document.getElementById("clock").value=str; applyClock(); }
@@ -1449,6 +1457,7 @@ function populateLabs(){
 document.getElementById("labSelect").addEventListener("change", (e)=>{
   const v=e.target.value; if(v===""||!X) return;
   const lab=LABS[+v];
+  track("placa/"+lab.name, lab.hex?"ejemplo":"placa");
   setClock(lab.clock||"4 MHz");
   setDiagram(lab.diagram);
   if(lab.asm){ edSrcEl.value=lab.asm; edSave(); showEditor(true); }
@@ -1466,7 +1475,7 @@ const playPauseBtn=document.getElementById("playPauseBtn"), stopBtn=document.get
 function setRunning(on){ running=on; playPauseBtn.classList.toggle("active", on); // .active (running) → shows the pause glyph
   playPauseBtn.setAttribute("aria-label", on?"Pausar":"Ejecutar"); playPauseBtn.title=(on?"Pausar":"Ejecutar")+" (Espacio)"; }
 function play(){ if(playPauseBtn.disabled||!X||running) return; if(breakSet.has(X.np_pc())) X.np_step(); setRunning(true); }
-function pause(){ if(playPauseBtn.disabled||!running) return; setRunning(false); if(dbgOpen) refreshDebug(); }
+function pause(){ if(playPauseBtn.disabled||!running) return; trackOnce("debugger/pausa",""); setRunning(false); if(dbgOpen) refreshDebug(); }
 function stop(){ if(stopBtn.disabled||!X) return; setRunning(false); X.np_reset(); runRealMs=0; for(const c of components){ if(c.idle) c.idle(); if(c.clear) c.clear(); } if(dbgOpen) refreshDebug(); }
 function togglePlay(){ if(running) pause(); else play(); }
 playPauseBtn.addEventListener("click", togglePlay);
@@ -1605,7 +1614,7 @@ function populatePaneSelects(){
   ["A","B"].forEach(id=>{ const sel=paneSelect(id); if(!sel) return;
     sel.innerHTML=VIEW_ORDER.map(v=>`<option value="${v}">${VIEW_LABELS[v]}</option>`).join("");
     sel.value=panes[id].view;
-    sel.addEventListener("change",()=>{ panes[id].view=sel.value; savePanes(); renderPane(id,true); });
+    sel.addEventListener("change",()=>{ panes[id].view=sel.value; savePanes(); renderPane(id,true); trackOnce("debugger/vista/"+sel.value, VIEW_LABELS[sel.value]||""); });
   });
 }
 // open/close the second pane (desktop dual view); persisted so it stays as the student left it
@@ -1642,12 +1651,13 @@ function showEditor(on){
 function snapBoard(){ if(!X) return; const pa=X.np_read_porta(), pb=X.np_read_portb(); for(const c of components){ if(c.reset)c.reset(); if(c.sample)c.sample(pa,pb); if(c.integrate)c.integrate(1); } }
 function stepN(n){ if(!X) return; setRunning(false); for(let i=0;i<n;i++){ X.np_step(); if(breakSet.has(X.np_pc())) break; } snapBoard(); refreshDebug(); }
 function stepOnce(){ stepN(1); }
-document.getElementById("stepBtn").addEventListener("click", stepOnce);
-document.getElementById("step10").addEventListener("click", ()=>stepN(10));
+document.getElementById("stepBtn").addEventListener("click", ()=>{ trackOnce("debugger/paso",""); stepOnce(); });
+document.getElementById("step10").addEventListener("click", ()=>{ trackOnce("debugger/paso-10",""); stepN(10); });
 document.getElementById("step100").addEventListener("click", ()=>stepN(100));
 
 // inline hex edit of a register/cell (pauses first so the live refresh can't clobber it)
 function editCell(span, cur, write){
+  trackOnce("debugger/editar-memoria","");
   setRunning(false);
   const inp=document.createElement("input"); inp.className="cellEdit";
   inp.value=cur.toString(16).toUpperCase().padStart(2,"0");
@@ -1660,7 +1670,7 @@ function editCell(span, cur, write){
 function addWatchFromPane(paneEl){
   const inp=paneEl.querySelector(".watchInput"); if(!inp) return;
   const w=resolveWatch(inp.value);
-  if(w && !watchList.some(x=>x.addr===w.addr)){ watchList.push(w); saveWatch(); }
+  if(w && !watchList.some(x=>x.addr===w.addr)){ watchList.push(w); saveWatch(); trackOnce("debugger/watch",""); }
   renderPane("A",true); renderPane("B",true);
   const again=paneEl.querySelector(".watchInput"); if(again) again.focus();
 }
@@ -1672,7 +1682,7 @@ panesEl.addEventListener("click",(e)=>{
   const paneEl=e.target.closest(".dbgPane"), id=paneEl?paneEl.dataset.pane:null;
   const prow=e.target.closest(".progRow");
   if(prow){ const a=+prow.dataset.a;
-    if(breakSet.has(a)){ breakSet.delete(a); X.np_clear_break(a); } else { breakSet.add(a); X.np_set_break(a); }
+    if(breakSet.has(a)){ breakSet.delete(a); X.np_clear_break(a); } else { breakSet.add(a); X.np_set_break(a); trackOnce("debugger/breakpoint",""); }
     document.querySelectorAll(`.progRow[data-a="${a}"] .bp`).forEach(b=>b.classList.toggle("on", breakSet.has(a))); return; }
   const bank=e.target.closest(".bankBtn");
   if(bank && id){ panes[id].bank=+bank.dataset.bank; savePanes(); renderPane(id,true); return; }
@@ -1704,8 +1714,8 @@ populatePaneSelects();
 document.getElementById("paneClose").addEventListener("click", ()=> setSplit(false));   // ✕ on pane B
 document.getElementById("paneSplit").addEventListener("click", ()=> setSplit(true));     // ⊞ on pane A (visible when single)
 setSplit(dbgSplit);
-document.getElementById("toggleDebug").addEventListener("click", ()=> showDebug(!dbgOpen));
-document.getElementById("toggleEditor").addEventListener("click", ()=> showEditor(!edPanelOpen));
+document.getElementById("toggleDebug").addEventListener("click", ()=>{ if(!dbgOpen) trackOnce("debugger/abrir",""); showDebug(!dbgOpen); });
+document.getElementById("toggleEditor").addEventListener("click", ()=>{ if(!edPanelOpen) trackOnce("editor/abrir",""); showEditor(!edPanelOpen); });
 document.getElementById("closeDebug").addEventListener("click", ()=> showDebug(false));
 document.getElementById("closeEditor").addEventListener("click", ()=> showEditor(false));
 (function initDockState(){
@@ -1770,16 +1780,17 @@ document.getElementById("edClear").addEventListener("click", ()=>{
 });
 document.getElementById("edFile").addEventListener("change", async (e)=>{
   const f=e.target.files[0]; if(!f) return;
-  try{ edSrcEl.value=await f.text(); edSave(); edStatus("Cargado “"+f.name+"” en el editor.",""); }
+  try{ edSrcEl.value=await f.text(); edSave(); edStatus("Cargado “"+f.name+"” en el editor.",""); track("editor/cargar-asm","archivo"); }
   catch(err){ edStatus("No se pudo leer el archivo.","err"); }
   e.target.value=""; });
 document.getElementById("edBuild").addEventListener("click", ()=>{
   if(!window.NP_ASM){ edStatus("No se pudo cargar el ensamblador (asm.js).","err"); return; }
   if(!X){ edStatus("El núcleo todavía no cargó. Esperá un momento.","err"); return; }
   const res=NP_ASM.assemble(edSrcEl.value);
-  if(!res.ok){ edStatus("✗ "+res.error,"err"); return; }
+  if(!res.ok){ edStatus("✗ "+res.error,"err"); track("compilar-error","editor"); return; }
   const ok=loadHex(res.hex);
   afterHex(ok, "tu programa");
+  if(ok) track("compilar","editor");
   edStatus(ok ? ("✓ Compilado: "+res.words.size+" instrucciones — cargado y ejecutando en la placa.")
               : "✗ El núcleo rechazó el .hex generado.", ok?"ok":"err");
 });
@@ -1813,7 +1824,7 @@ stageEl.addEventListener("drop", async (e)=>{ e.preventDefault(); stageEl.classL
   const f=e.dataTransfer&&e.dataTransfer.files[0]; if(!f) return;
   if(!X){ setStatus("Cargá el núcleo primero.","err"); return; }
   if(!/\.hex$/i.test(f.name)){ setStatus("Arrastrá un archivo .hex.","err"); return; }
-  const ok=loadHex(await f.text()); afterHex(ok, f.name); if(ok) clearEditorSource(); });
+  const ok=loadHex(await f.text()); afterHex(ok, f.name); if(ok){ clearEditorSource(); track("cargar-hex","arrastrar"); } });
 
 // ===== keyboard: space toggles play / pause =====
 window.addEventListener("keydown",(e)=>{
@@ -2016,7 +2027,7 @@ window.addEventListener("resize", clampPan);
 
     const input = wireSearch("helpSearchWrap","helpSearch","helpSearchX", paint);
     paint("");
-    helpBtn.addEventListener("click", ()=>{ openOvl(helpOvl, helpBtn, input); requestAnimationFrame(spy); });
+    helpBtn.addEventListener("click", ()=>{ trackOnce("ayuda/manual",""); openOvl(helpOvl, helpBtn, input); requestAnimationFrame(spy); });
   }
 
   // ---- the instruction set ----
@@ -2054,7 +2065,7 @@ window.addEventListener("resize", clampPan);
 
     const input = wireSearch("isaSearchWrap","isaSearch","isaSearchX", paint);
     paint("");
-    isaBtn.addEventListener("click", ()=> openOvl(isaOvl, isaBtn, input));
+    isaBtn.addEventListener("click", ()=>{ trackOnce("ayuda/instrucciones",""); openOvl(isaOvl, isaBtn, input); });
   }
 
   // ---- hover tooltips: code editor + debugger Program view ----

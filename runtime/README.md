@@ -49,6 +49,7 @@ demos. To add a board: build it in `authoring.html`, **Export JSON**, paste it i
 - `labs.js` — instructor lab boards (the **Placa** dropdown).
 - `asm.js` — in-browser MPASM assembler behind the **Código** editor (compiles `.asm` → `.hex`).
 - `manifest.json` + `sw.js` + `icon.svg` — PWA (installable + offline).
+- `count.js` — local copy of GoatCounter's counter script (anonymous usage statistics; see `../DEPLOY.md`).
 - `authoring.html` — instructor-only diagram editor (excluded from the student deploy).
 
 ## Rendering

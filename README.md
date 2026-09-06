@@ -224,4 +224,5 @@ GitHub Pages, built by [`.github/workflows/pages.yml`](.github/workflows/pages.y
 One-time: **Settings → Pages → Source = GitHub Actions**, then `git push`. The workflow
 publishes `runtime/` (without the instructor authoring page) to
 <https://santibianco.github.io/SimuPIC/>, and the same URL embeds in Moodle via an iframe.
-Step-by-step: [`DEPLOY.md`](DEPLOY.md).
+Step-by-step: [`DEPLOY.md`](DEPLOY.md). Anonymous usage statistics (visits + a few
+events, no cookies) go to GoatCounter — see `DEPLOY.md` → *Usage statistics*.

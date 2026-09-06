@@ -7,6 +7,31 @@ classroom (codename *New Proteus*). **Shipped and live:**
 
 ## Session log (newest first) — update this at the end of each session
 
+- **2026-09-06 (estadísticas de uso con GoatCounter)** — Santiago quería saber cuántos visitan el simulador y
+  cuántos son únicos. Comparamos GoatCounter, Umami Cloud y Cloudflare Web Analytics (GA4 descartado: cookies,
+  consentimiento y peso; y dentro del iframe de Moodle las cookies de terceros están cada vez más bloqueadas).
+  Elegimos **GoatCounter**: gratis para uso no comercial, sin cookies (no hace falta banner), panel en
+  <https://simupic.goatcounter.com>. Detalles no obvios de la integración (todo documentado en `DEPLOY.md`):
+  1. **`runtime/count.js` es una copia local** del script (ISC) para no habilitar `gc.zgo.at` en el CSP; sólo se
+     sumó `https://simupic.goatcounter.com` a `connect-src` (sendBeacon) e `img-src` (fallback `<img>`). Único
+     cambio respecto de upstream: `try/catch` alrededor de `localStorage`, que en un iframe de terceros con cookies
+     bloqueadas lanza `SecurityError` y hubiera abortado el conteo.
+  2. El tag lleva `data-goatcounter-settings='{"allow_frame": true}'` — sin eso count.js **no cuenta dentro de
+     iframes**, o sea nunca contaría a los alumnos que entran por Moodle. `localhost` y `file://` siguen sin
+     contarse (dev). Playwright/headless se marca como bot (`b=153`) y el backend lo descarta.
+  3. **Eventos** vía `track(path, title)` (junto a `afterHex`): `cargar-hex` (título `archivo`/`arrastrar`),
+     `compilar` (editor) y `placa/<nombre>` (título `placa`/`ejemplo`). No hay evento «ejecutar» porque cargar un
+     .hex ya arranca la ejecución: sería el mismo número. Nunca se manda el programa ni el nombre del archivo.
+  4. `sw.js` ahora ignora requests de otro origen (antes cacheaba **todos** los GET, incluidos los beacons — un
+     entry por pageview, con `rnd` distinto cada vez) y suma `count.js` al shell; cache `simupic-v5`.
+  5. **Segunda pasada — «qué partes usan los alumnos»:** `trackOnce(path)` (un hit por carga de página y por ruta,
+     así el total ≈ sesiones que usaron esa función): `debugger/abrir|paso|paso-10|pausa|breakpoint|watch|
+     editar-memoria|vista/<prog|data|sfr|stack|watch>`, `editor/abrir`, `ayuda/manual|instrucciones`. Y con
+     `track` (cada vez): `compilar-error`, `editor/cargar-asm`. Tabla completa en DEPLOY.md. `#toggle-goatcounter`
+     apaga todo (pageviews y eventos pasan por el mismo `count()`/`filter()`).
+  **Pendiente de Santiago:** crear la cuenta en goatcounter.com/signup con el code `simupic` (si está tomado,
+  cambiar las tres ocurrencias en `index.html`, ver DEPLOY.md) y pushear.
+
 - **2026-09-01 (manual embebido + set de instrucciones on demand)** — Santiago preguntó cómo meter el manual de
   usuario dentro del simulador y cómo mostrar «las primeras columnas» de la tabla 15-2 del datasheet. Elegimos la
   variante liviana: **el manual entra como texto, sin las 23 capturas** — son fotos de la pantalla que el alumno está
