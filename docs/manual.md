@@ -39,16 +39,15 @@ Si el simulador se desviara en el conteo de ciclos, terminarías depurando códi
 
 ## 2. Un vistazo a la pantalla
 
-En la computadora, la pantalla se divide en cuatro zonas. Vas a usar siempre las tres primeras; el panel de la derecha se puede abrir y cerrar.
+En la computadora, la pantalla se divide en tres zonas: la barra de arriba, la placa a la izquierda y el código a la derecha.
 
 <!-- figura 2 · Vista completa en la computadora, con un programa cargado y corriendo. -->
 
 | **Zona** | **Para qué sirve** |
 |---|---|
-| **Barra superior** | Abrir el editor de código y el debugger, ver el set de instrucciones y este manual, y cambiar entre tema claro y oscuro. |
-| **Columna izquierda** | Elegir la placa y ejecutar / pausar / detener. Abajo aparece el mensaje de estado. |
-| **Centro** | La placa: el PIC dibujado como un DIP-18 con los componentes conectados a sus pines. Acá se ve todo lo que hace tu programa. |
-| **Columna derecha** | El debugger y el editor de código. Se abren y se cierran desde la barra superior. |
+| **Barra superior** | Elegir la placa, ejecutar / pausar / detener, abrir el debugger, ver el set de instrucciones y este manual, y cambiar entre tema claro y oscuro. |
+| **Placa** | El PIC dibujado como un DIP-18 con los componentes conectados a sus pines. Acá se ve todo lo que hace tu programa. Debajo aparece el mensaje de estado. |
+| **Columna derecha** | El editor de código, siempre abierto. Si abrís el debugger, aparece debajo del editor. |
 
 Al abrirlo por primera vez la placa está vacía, con el mensaje «Elegí una placa para empezar». Es normal: falta elegir el trabajo práctico.
 
@@ -60,7 +59,7 @@ En cuatro pasos tenés tu programa corriendo.
 
 ### Paso 1 — Elegí la placa
 
-Abrí el menú «Placa» de la columna izquierda y elegí el trabajo práctico correspondiente. Las opciones están agrupadas:
+Abrí el menú «Placa», arriba de todo, y elegí el trabajo práctico correspondiente. Las opciones están agrupadas:
 
 | **Grupo** | **Qué contiene** |
 |---|---|
@@ -75,13 +74,13 @@ Abrí el menú «Placa» de la columna izquierda y elegí el trabajo práctico c
 
 ### Paso 2 — Escribí tu programa
 
-Al elegir la placa se abre «Código», el editor. Escribí o pegá tu assembler ahí (o traé tu archivo .asm con el ícono de carpeta, o arrastrándolo sobre la ventana) y tocá «Compilar y cargar». El ensamblador está incorporado: no necesitás instalar nada ni salir del navegador. Está explicado en detalle en el capítulo 7.
+El editor, «Código», está siempre a la derecha. Escribí o pegá tu assembler ahí (o traé tu archivo .asm con el ícono de carpeta, o arrastrándolo sobre la ventana) y tocá «Compilar y cargar». El ensamblador está incorporado: no necesitás instalar nada ni salir del navegador. Está explicado en detalle en el capítulo 7.
 
-Si el programa se compiló bien, debajo del editor aparece en verde cuántas instrucciones generó, y el mensaje de estado de la izquierda también se pone verde.
+Si el programa se compiló bien, debajo del editor aparece en verde cuántas instrucciones generó, y el mensaje de estado, debajo de la placa, también se pone verde.
 
 ### Paso 3 — Ejecutalo
 
-En el panel «Simulación» tenés los dos botones de siempre:
+Al lado del menú «Placa», en la barra superior (en el celular, debajo de la placa), tenés los dos botones de siempre:
 
 | **Botón** | **Qué hace** |
 |---|---|
@@ -103,19 +102,20 @@ Hacé clic (o tocá, en el celular) sobre un pulsador de la placa para presionar
 
 | **Control** | **Qué hace** |
 |---|---|
-| **Código** | Muestra u oculta el editor de código assembler. |
-| **Debugger** | Muestra u oculta el debugger. |
+| **Placa** | El menú para elegir el trabajo práctico o uno de los ejemplos. Hasta que elijas uno aparece resaltado. |
+| **Triángulo / cuadrado** | Ejecutar o pausar, y detener (capítulo 3, paso 3). Al lado, el cronómetro. |
+| **Debugger** | Muestra u oculta el debugger, debajo del editor. |
 | **Instrucciones** | Abre la tabla con las 35 instrucciones del PIC (capítulo 11). |
 | **Manual** | Abre este manual. |
 | **Luna / sol** | Cambia entre el tema claro y el oscuro. Es sólo estético; no afecta a la simulación. |
 
-En el celular los mismos botones aparecen sólo con su ícono, para que entren en la pantalla.
+En pantallas más angostas los botones Debugger, Instrucciones y Manual aparecen sólo con su ícono, para que entren. En el celular, el menú «Placa» y los botones de simulación bajan a sus propios recuadros (capítulo 9).
 
 <!-- figura 6 · El mismo simulador con el tema oscuro activado. -->
 
 ## 5. Placa, simulación y estado
 
-<!-- figura 7 · La columna izquierda con un programa cargado. -->
+<!-- figura 7 · La barra superior con un programa cargado. -->
 
 ### El reloj: siempre 4 MHz
 
@@ -127,11 +127,11 @@ SimuPIC simula el PIC a 4 MHz, el valor que se usa en la cátedra: **un ciclo de
 
 ### Mensaje de estado
 
-El recuadro de abajo te dice qué pasó con lo último que hiciste. En verde, que salió bien; en rojo, que hubo un problema (por ejemplo, soltaste sobre la ventana un archivo que no es un .asm). Los errores de compilación aparecen debajo del editor.
+La línea de texto debajo de la placa te dice qué pasó con lo último que hiciste. En verde, que salió bien; en rojo, que hubo un problema (por ejemplo, soltaste sobre la ventana un archivo que no es un .asm). Los errores de compilación aparecen debajo del editor.
 
 ## 6. La placa
 
-En el centro se dibuja el PIC16F628A como un encapsulado DIP-18, con los 18 pines numerados y etiquetados. Alrededor se ubican los componentes que definió la cátedra para ese trabajo práctico, y una etiqueta indica a qué pin está conectado cada uno.
+En la placa se dibuja el PIC16F628A como un encapsulado DIP-18, con los 18 pines numerados y etiquetados. Alrededor se ubican los componentes que definió la cátedra para ese trabajo práctico, y una etiqueta indica a qué pin está conectado cada uno.
 
 <!-- figura 8 · Placa del Ejercicio 1: cuatro LEDs conectados a RB0…RB3, todos encendidos. -->
 
@@ -148,7 +148,7 @@ En el centro se dibuja el PIC16F628A como un encapsulado DIP-18, con los 18 pine
 
 - Rueda del mouse (o pellizco en el celular) para acercar y alejar.
 - Arrastrando con el mouse (o el dedo) se desplaza la vista.
-- **Botón de la lupa** arriba a la derecha: abre los controles de zoom, con «−», «+», el porcentaje actual y «Ajustar» para volver a encuadrar la placa entera.
+- **Botón de la lupa** arriba a la derecha de la placa: abre los controles de zoom, con «−», «+», el porcentaje actual y «Ajustar» para volver a encuadrar la placa entera.
 
 > **Multiplexado: qué vas a ver**
 >
@@ -156,7 +156,7 @@ En el centro se dibuja el PIC16F628A como un encapsulado DIP-18, con los 18 pine
 
 ## 7. El editor de código
 
-SimuPIC trae un editor con un ensamblador incorporado: podés escribir el assembler directamente acá y compilarlo sin salir del navegador. Se abre con el botón «Código» de la barra superior.
+SimuPIC trae un editor con un ensamblador incorporado: podés escribir el assembler directamente acá y compilarlo sin salir del navegador. Está siempre abierto, a la derecha de la placa: es la única forma de cargar un programa.
 
 <!-- figura 9 · El editor con el código de uno de los ejemplos cargado. -->
 
@@ -192,7 +192,7 @@ Lo que **no** acepta son las directivas de datos DT, DE, DW, DA, FILL y RES. Las
 
 ## 8. El debugger
 
-El debugger es la parte más potente de SimuPIC: te deja frenar el programa, avanzarlo instrucción por instrucción y mirar por dentro todos los registros del PIC mientras corre. Se abre y se cierra con el botón «Debugger» de la barra superior, y trabaja junto con el editor: el seguimiento del programa y los breakpoints se ven directamente sobre tu código.
+El debugger es la parte más potente de SimuPIC: te deja frenar el programa, avanzarlo instrucción por instrucción y mirar por dentro todos los registros del PIC mientras corre. Se abre y se cierra con el botón «Debugger» de la barra superior y aparece debajo del editor; la rayita que los separa se puede arrastrar para darle más alto a uno o al otro. Trabaja junto con el editor: el seguimiento del programa y los breakpoints se ven directamente sobre tu código.
 
 <!-- figura 11 · El debugger abierto, con dos paneles: Programa y Watch. -->
 
@@ -276,7 +276,7 @@ Es más cómoda que la vista Datos cuando sólo te interesan dos o tres variable
 
 ## 9. En el celular
 
-SimuPIC funciona igual en el teléfono. La diferencia es que las zonas, en vez de estar una al lado de la otra, se apilan una debajo de la otra: primero la placa, después los controles de simulación y por último el debugger o el editor si los abriste. Se navega desplazándose hacia abajo.
+SimuPIC funciona igual en el teléfono. La diferencia es que las zonas, en vez de estar una al lado de la otra, se apilan una debajo de la otra: primero el menú «Placa», después la placa, los controles de simulación, el mensaje de estado y por último el debugger (si lo abriste) y el editor. Se navega desplazándose hacia abajo.
 
 ### Diferencias respecto de la computadora
 

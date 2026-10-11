@@ -85,8 +85,8 @@ No pipeline, no cache, no variable latency — cycles are counted exactly by con
 
 ### Students
 1. Open <https://santibianco.github.io/SimuPIC/> (or the Moodle activity your instructor set up).
-2. Pick your lab from the **Placa** dropdown (e.g. *TP - Simple*).
-3. Write (or open / drop) your `.asm` in **Código** and press **Compilar y cargar**.
+2. Pick your lab from the **Placa** dropdown in the top bar (e.g. *TP - Simple*).
+3. Write (or open / drop) your `.asm` in **Código** (always open, right of the board) and press **Compilar y cargar**.
 4. Watch it run and click the buttons (*Pulsador*) to interact. **Detener** power-cycles
    the chip (RAM clears, EEPROM survives). The clock is always 4 MHz (1 µs per cycle).
 5. To debug: click a line number for a breakpoint, press ▶, then step with *Paso*.

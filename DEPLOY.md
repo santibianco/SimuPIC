@@ -128,7 +128,7 @@ part of the app* — read them next to the page views to see which parts student
 
 | Event | Fired the first time in a session that… |
 |---|---|
-| `debugger/abrir`, `editor/abrir` | the student opens the Debugger / Código panel with the toolbar button (the default-open dock on wide screens doesn't count) |
+| `debugger/abrir` | the student opens the Debugger with the toolbar button (the default-open debugger on wide screens doesn't count). (`editor/abrir` existed until 2026-10-11, when the Código editor became always open.) |
 | `debugger/paso`, `debugger/paso-10` | *Paso* / *×10* is pressed |
 | `debugger/pausa` | execution is paused |
 | `debugger/breakpoint` | a breakpoint is set in the *Programa* view |

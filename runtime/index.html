@@ -65,18 +65,38 @@
   [data-theme="dark"] .icon-moon{ display:none; }
   [data-theme="light"] .icon-sun{ display:none; }
 
-  /* ===== layout: rail · stage · debugger dock (IDE-style workspace) ===== */
-  .layout{ --rail-w:272px; --dock-w:472px;
+  /* ===== layout: stage (board) · dock (Código + Debugger) — IDE-style workspace =====
+     Since 2026-10-11 the Placa picker and the transport live in the app bar (no left column on
+     desktop) and the code editor is always open. The board is capped to the window height:
+     --board-max is the widest a 920×640 board can be and still fit under the app bar with the
+     status line below it; whatever width is left over goes to the dock, i.e. to the editor.
+     On phones (≤920px) the old cards come back — see placeControls(). */
+  .layout{ --dock-w:472px;
+    --top:79px;                                            /* app bar (61) + top padding (18) */
+    --dock-h:calc(100vh - var(--top) - 18px);              /* down to the bottom padding */
+    --board-max:calc((100vh - var(--top) - 63px) * 1.4375); /* 63 = gap + 2-line status + bottom padding; 1.4375 = 920/640 */
     display:grid; gap:16px; align-items:start;
-    grid-template-columns: var(--rail-w) minmax(0,1fr) var(--dock-w);
-    grid-template-areas:"rail stage dock";
-    max-width:1840px; margin:0 auto; padding:18px 20px; }
-  .layout.no-dock{ grid-template-columns: var(--rail-w) minmax(0,1fr); grid-template-areas:"rail stage"; }
-  .layout.no-dock .dock{ display:none; }
-  .rail{ grid-area:rail; display:flex; flex-direction:column; gap:14px; position:sticky; top:74px; }
-  .stage{ grid-area:stage; min-width:0; display:flex; flex-direction:column; gap:14px; }
-  .dock{ grid-area:dock; position:sticky; top:74px; align-self:start; min-width:0;
-    max-height:calc(100vh - 90px); }
+    grid-template-columns: minmax(0, var(--board-max)) minmax(var(--dock-w), 1fr);
+    grid-template-areas:"stage dock";
+    max-width:2560px; margin:0 auto; padding:18px 20px; }   /* (was 1840 — the board is height-capped now, so let big monitors use it) */
+  .rail{ display:none; }          /* desktop: its controls sit in the app bar; it comes back on phones */
+  .stage{ grid-area:stage; min-width:0; display:flex; flex-direction:column; align-items:center; gap:14px; }
+  .dock{ grid-area:dock; position:sticky; top:var(--top); align-self:start; min-width:0;
+    max-height:var(--dock-h); }
+
+  /* Placa + transport in the app bar (desktop). On phones placeControls() moves them back into the cards. */
+  .barCtrls{ flex:0 1 auto; display:flex; align-items:center; gap:14px; min-width:0; margin-left:6px; padding-left:18px;
+    border-left:1px solid var(--border); }
+  .barPlaca{ display:flex; align-items:center; gap:9px; min-width:0; }
+  .barLbl{ font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--text-faint); }
+  /* as wide as the bar allows (the labelled toggles need ~1040px of the rest); shrinks first if space runs out */
+  .barPlaca .select{ flex:0 1 auto; min-width:150px; width:clamp(200px, calc(100vw - 1040px), 340px); height:38px; padding:0 10px; }
+  .barSim{ flex:0 0 auto; }
+  .barSim .sim-row{ gap:8px; }
+  .barSim .tbtn{ flex:0 0 auto; width:46px; height:38px; }
+  .barSim .readout{ min-width:78px; padding-left:4px; font-variant-numeric:tabular-nums; }
+  /* before a placa is chosen the picker is where to start: give it the accent ring */
+  .select.needs:not(:disabled){ border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
 
   /* ===== cards / controls ===== */
   .card{ background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:14px; box-shadow:var(--shadow-sm); }
@@ -134,11 +154,12 @@
   .status{ font-size:12px; color:var(--text-dim); }
   .status.ok{ color:var(--ok); }
   .status.err{ color:var(--err); }
-  #status{ background:var(--surface); border:1px solid var(--border); border-radius:12px;
-    padding:11px 13px; box-shadow:var(--shadow-sm); line-height:1.45; }
+  /* desktop: a plain line under the board, as wide as the board; two lines are reserved so a long
+     message never pushes the page into scrolling (--board-max accounts for them) */
+  #status{ width:min(100%, var(--board-max)); min-height:35px; margin-top:-4px; padding:0 6px; line-height:1.45; }
 
   /* ===== board ===== */
-  .board-wrap{ position:relative; width:100%; aspect-ratio:920/640; overflow:hidden;
+  .board-wrap{ position:relative; width:min(100%, var(--board-max)); aspect-ratio:920/640; overflow:hidden;
     background:var(--board); border:1px solid var(--board-border); border-radius:18px; box-shadow:var(--shadow); }
   #board{ display:block; width:100%; height:100%; touch-action:none; cursor:grab; }
   #board.panning{ cursor:grabbing; }
@@ -154,7 +175,8 @@
   .zsep{ width:1px; height:18px; background:var(--zbar-border); margin:0 2px; }
   .zoomCtrls{ display:flex; align-items:center; gap:4px; }
   .zoombar.collapsed .zoomCtrls{ display:none; }   /* collapsed (the default) → only the magnifier toggle shows */
-  .board-hint{ font-size:11.5px; color:var(--text-faint); text-align:center; margin-top:-4px; }
+  /* the zoom hint shows only on phones; on desktop its row holds the status line (the hint is the magnifier's tooltip) */
+  .board-hint{ display:none; font-size:11.5px; color:var(--text-faint); text-align:center; margin-top:-4px; }
   /* empty stage: before a board is picked the middle is blank + a hint; the circuit
      renders only once the student chooses a placa. Toggled by .stage.empty (JS). */
   .board-empty{ position:absolute; inset:0; z-index:4; display:none; flex-direction:column;
@@ -308,7 +330,7 @@
   .dockResize:hover::before, .dockResize.drag::before{ background:var(--accent); }
   .dockInner{ flex:1 1 auto; min-width:0; display:flex; flex-direction:column; gap:10px;
     background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:12px;
-    box-shadow:var(--shadow-sm); height:calc(100vh - 90px); max-height:calc(100vh - 90px); }
+    box-shadow:var(--shadow-sm); height:var(--dock-h); max-height:var(--dock-h); }
   .dockBar{ display:flex; align-items:center; gap:8px; }
   .dockTitle{ font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--text-faint); }
   .dockSpacer{ flex:1; }
@@ -339,13 +361,22 @@
   .dbgPanes.single{ grid-template-columns:1fr; }
   .dbgPanes.single .dbgPane.paneB{ display:none; }
   .dbgPanes.single .paneSplit{ display:grid; }
-  /* dock blocks: Debugger + Código stack and share the dock height; either can be closed independently */
+  /* dock blocks: Código (always open, on top) + Debugger (toggled) share the dock height; the
+     divider between them is draggable and its position is remembered (np_dock_split). In the DOM the
+     debugger comes first, which is the order phones and narrow windows keep (stacked by content). */
   .dockBlock{ flex:1 1 0; min-height:0; display:flex; flex-direction:column; gap:10px; }
   .dockBlock.hidden{ display:none; }
   .dockBlockBar{ display:flex; align-items:center; gap:8px; }
-  .dockBlock:not(.hidden) + .dockBlock:not(.hidden){ border-top:1px solid var(--border-soft); padding-top:12px; }
+  #dockEditor{ order:1; } .dockSplit{ order:2; } #dockDebug{ order:3; }
+  .dockSplit{ flex:0 0 14px; margin:-6px 0; position:relative; cursor:row-resize; touch-action:none; }
+  .dockSplit::before{ content:""; position:absolute; left:0; right:0; top:50%; height:1px; background:var(--border-soft); }
+  .dockSplit::after{ content:""; position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+    width:46px; height:3px; border-radius:3px; background:var(--border); transition:background .12s; }
+  .dockSplit:hover::after, .dockSplit.drag::after{ background:var(--accent); }
+  .dockSplit.hidden{ display:none; }
   /* ASM editor, docked: the textarea fills the block height */
   #dockEditor .edWrap{ flex:1 1 auto; min-height:120px; }
+  .edBar .dockTitle{ margin-left:auto; padding-left:6px; }
 
 
   /* ===== overlays: manual (drawer) + instruction set (modal) ===== */
@@ -484,13 +515,22 @@
   }
 
   /* ===== responsive ===== */
-  /* below 1200px: debugger un-docks to a full-width panel under the stage; single pane (dual-view is desktop-only) */
+  /* narrower desktops: the app-bar toggles go icon-only so Placa + transport keep their room */
+  @media (min-width: 921px) and (max-width: 1280px){
+    .barbtn{ width:38px; padding:0; gap:0; justify-content:center; }
+    .barbtn .barbtn-tx{ display:none; }
+    .brand-tag{ display:none; }
+    .barPlaca .select{ width:clamp(180px, calc(100vw - 760px), 340px); }
+  }
+  /* below 1200px: the dock un-docks to a full-width panel under the board (debugger first, then the
+     editor, stacked by content); single debugger pane (dual-view is desktop-only) */
   @media (max-width: 1200px){
-    .layout{ grid-template-columns: var(--rail-w) minmax(0,1fr); grid-template-areas:"rail stage" "dock dock"; }
-    .layout.no-dock{ grid-template-columns: var(--rail-w) minmax(0,1fr); grid-template-areas:"rail stage"; }
+    .layout{ grid-template-columns:minmax(0,1fr); grid-template-areas:"stage" "dock"; }
     .dock{ position:static; max-height:none; }
     .dockInner{ height:auto; max-height:none; }
-    .dockBlock{ flex:0 0 auto; }                       /* stack by content when un-docked */
+    .dockBlock{ flex:0 0 auto !important; }            /* stack by content when un-docked (beats the divider's inline grow) */
+    #dockEditor, #dockDebug{ order:0; }
+    .dockSplit{ display:none !important; }
     #dockEditor .edWrap{ min-height:300px; }
     .dockResize{ display:none; }
     .dbgPanes{ grid-template-columns:1fr; }
@@ -499,13 +539,20 @@
     .dbgPaneBody{ max-height:62vh; }
   }
   @media (max-width: 920px){
-    /* mobile order, top→down: Placa · Archivos · board · Simulación · status */
+    /* phones — unchanged by the 2026-10-11 app-bar redesign. Order, top→down: Placa · board ·
+       Simulación · status · dock. placeControls() moves the picker, the transport and the status
+       line back into these cards (on desktop they live in the app bar / under the board). */
     .layout{ grid-template-columns:1fr; grid-template-areas:"placa" "stage" "sim" "status" "dock"; padding:14px; gap:14px; }
-    .layout.no-dock{ grid-template-columns:1fr; grid-template-areas:"placa" "stage" "sim" "status"; }
     .rail{ display:contents; }                 /* cards become direct grid items so they can be reordered around the board */
     #placaCard{ grid-area:placa; }
     #simCard{ grid-area:sim; }
-    #status{ grid-area:status; }
+    #status{ grid-area:status; width:auto; min-height:0; margin:0; background:var(--surface); border:1px solid var(--border);
+      border-radius:12px; padding:11px 13px; box-shadow:var(--shadow-sm); }
+    .barCtrls{ display:none; }
+    .edBar .dockTitle{ order:-1; flex-basis:100%; margin:0 0 2px; padding:0; }   /* title row above the buttons, as before */
+    .stage{ align-items:stretch; }
+    .board-wrap{ width:100%; }                 /* no height cap on phones */
+    .board-hint{ display:block; }
   }
   /* phones: icon-only navbar toggles (the labels won't fit) + a tighter bar */
   @media (max-width: 640px){
@@ -536,16 +583,34 @@
       <span class="brand-name">SimuPIC</span>
       <span class="brand-tag">PIC16F628A</span>
     </div>
+    <!-- Placa picker + transport. Desktop: here. Phones: placeControls() moves them into the
+         «Placa» / «Simulación» cards below (the slots stay empty and hidden). -->
+    <div class="barCtrls" id="barCtrls">
+      <label class="barPlaca" id="barPlaca" for="labSelect">
+        <span class="barLbl">Placa</span>
+        <select id="labSelect" class="select needs" disabled></select>
+      </label>
+      <div class="barSim" id="barSim">
+        <div class="sim-row" id="simRow">
+          <div class="transport" role="group" aria-label="Controles de simulación">
+            <button id="playPauseBtn" class="tbtn" title="Ejecutar (Espacio)" aria-label="Ejecutar" disabled>
+              <svg class="ic-play" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M8 5.5v13l11-6.5z" fill="currentColor"/></svg>
+              <svg class="ic-pause" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><rect x="7" y="5" width="3.6" height="14" rx="1.2" fill="currentColor"/><rect x="13.4" y="5" width="3.6" height="14" rx="1.2" fill="currentColor"/></svg>
+            </button>
+            <button id="stopBtn" class="tbtn" title="Detener y reiniciar" aria-label="Detener" disabled>
+              <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><rect x="6.5" y="6.5" width="11" height="11" rx="2" fill="currentColor"/></svg>
+            </button>
+          </div>
+          <span id="simReadout" class="readout" title="Tiempo real de ejecución">00:00:000</span>
+        </div>
+      </div>
+    </div>
     <div class="appbar-spacer"></div>
     <label id="wasmWrap" class="barbtn hidden" title="Cargar el núcleo (.wasm)" aria-label="Cargar núcleo">
       <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="6" width="12" height="12" rx="2"/><rect x="9.5" y="9.5" width="5" height="5" rx="1"/><path d="M9 3.5V6M15 3.5V6M9 18v2.5M15 18v2.5M3.5 9H6M3.5 15H6M18 9h2.5M18 15h2.5"/></svg>
       <span class="barbtn-tx">Núcleo</span>
       <input id="wasmFile" type="file" accept=".wasm" />
     </label>
-    <button id="toggleEditor" class="barbtn" title="Mostrar u ocultar el editor de código" aria-label="Editor de código" aria-pressed="false">
-      <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><path d="M9 8.5 5.5 12 9 15.5M15 8.5 18.5 12 15 15.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      <span class="barbtn-tx">Código</span>
-    </button>
     <button id="toggleDebug" class="barbtn active" title="Mostrar u ocultar el debugger" aria-label="Debugger" aria-pressed="true">
       <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
         <path d="m8 2 1.88 1.88"/><path d="M14.12 3.88 16 2"/>
@@ -572,29 +637,15 @@
   </header>
 
   <div class="layout">
-    <aside class="rail">
+    <!-- phones only (≤920px): placeControls() moves #labSelect, #simRow and #status in here -->
+    <aside class="rail" id="rail">
       <div class="card" id="placaCard">
         <div class="card-title">Placa</div>
-        <select id="labSelect" class="select" disabled></select>
       </div>
 
       <div class="card" id="simCard">
         <div class="card-title">Simulación</div>
-        <div class="sim-row">
-          <div class="transport" role="group" aria-label="Controles de simulación">
-            <button id="playPauseBtn" class="tbtn" title="Ejecutar (Espacio)" aria-label="Ejecutar" disabled>
-              <svg class="ic-play" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M8 5.5v13l11-6.5z" fill="currentColor"/></svg>
-              <svg class="ic-pause" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><rect x="7" y="5" width="3.6" height="14" rx="1.2" fill="currentColor"/><rect x="13.4" y="5" width="3.6" height="14" rx="1.2" fill="currentColor"/></svg>
-            </button>
-            <button id="stopBtn" class="tbtn" title="Detener y reiniciar" aria-label="Detener" disabled>
-              <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><rect x="6.5" y="6.5" width="11" height="11" rx="2" fill="currentColor"/></svg>
-            </button>
-          </div>
-          <span id="simReadout" class="readout" title="Tiempo real de ejecución">00:00:000</span>
-        </div>
       </div>
-
-      <div id="status" class="status">Cargando núcleo…</div>
     </aside>
 
     <main class="stage empty">
@@ -603,10 +654,10 @@
         <div class="board-empty" id="boardEmpty" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="8" width="14" height="10" rx="1.5"/><path d="M9 8V5.5M15 8V5.5M9 18v2.5M15 18v2.5M5 11H2.5M5 15H2.5M19 11h2.5M19 15h2.5"/></svg>
           <div class="be-title">Elegí una placa para empezar</div>
-          <div class="be-sub">Seleccioná una placa o ejemplo en el menú «Placa» para ver el circuito acá.</div>
+          <div class="be-sub">Seleccioná una placa o ejemplo en el menú «Placa», arriba, para ver el circuito acá.</div>
         </div>
         <div class="zoombar collapsed" id="zoombar" role="group" aria-label="Zoom de la placa">
-          <button id="zoomToggle" class="zbtn zoomToggle" title="Mostrar u ocultar los controles de zoom" aria-label="Mostrar u ocultar los controles de zoom" aria-expanded="false">
+          <button id="zoomToggle" class="zbtn zoomToggle" title="Controles de zoom (también: rueda o pellizco para hacer zoom · arrastrá para mover)" aria-label="Mostrar u ocultar los controles de zoom" aria-expanded="false">
             <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m20 20-4.7-4.7M7.5 10.5h6M10.5 7.5v6"/></svg>
           </button>
           <div class="zoomCtrls" id="zoomCtrls">
@@ -619,6 +670,7 @@
         </div>
       </div>
       <div class="board-hint">Rueda o pellizco para hacer zoom · arrastrá para mover</div>
+      <div id="status" class="status" role="status">Cargando núcleo…</div>
     </main>
 
     <aside class="dock" id="dock">
@@ -662,12 +714,10 @@
         </div>
         </section><!-- /#dockDebug -->
 
-        <section id="dockEditor" class="dockBlock edPanel hidden">
-          <div class="dockBlockBar">
-            <span class="dockTitle">Código (ASM)</span>
-            <span class="dockSpacer"></span>
-            <button id="closeEditor" class="dockIcon" title="Cerrar el editor" aria-label="Cerrar el editor">✕</button>
-          </div>
+        <div class="dockSplit hidden" id="dockSplit" role="separator" aria-orientation="horizontal" title="Arrastrá para repartir el alto entre el código y el debugger"></div>
+
+        <!-- the code editor is always open (since 2026-10-11 it is the only way to load a program) -->
+        <section id="dockEditor" class="dockBlock edPanel" aria-label="Código (ASM)">
           <div class="edBar">
             <input id="edFile" type="file" accept=".asm,.inc,.txt" style="display:none" />
             <button id="edBuild" class="btn btn-primary" disabled title="Elegí una placa antes de compilar">Compilar y cargar ▸</button>
@@ -680,6 +730,7 @@
             <button id="edClear" class="ebtn ebtn-clear" title="Limpiar (borrar todo el código)" aria-label="Limpiar">
               <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
             </button>
+            <span class="dockTitle">Código (ASM)</span>
           </div>
           <div id="edWrap" class="edWrap">
             <div id="edGutter" class="edGutter" aria-hidden="true">1</div>
@@ -1395,6 +1446,7 @@ function setStatus(m,c){ statusEl.textContent=m; statusEl.className="status "+(c
 function enable(ids,on){ ids.forEach((id)=>document.getElementById(id).disabled=!on); }
 function coreReady(){ populateLabs(); enable(["labSelect","stepBtn","step10","step100"],true); if(dbgOpen){ rebuildProg(); refreshDebug(); } }
 function setBoardLoaded(on){ boardLoaded=on; if(stageEl) stageEl.classList.toggle("empty", !on);
+  document.getElementById("labSelect").classList.toggle("needs", !on);   // accent ring on the picker until a placa is chosen
   const b=document.getElementById("edBuild"); if(b){ b.disabled=!on; b.title=on?"":"Elegí una placa antes de compilar"; } }
 function setDiagram(d){ components=build(d); setBoardLoaded(true); resetView(); }
 // ===== estadísticas de uso (GoatCounter): contadores anónimos de eventos — nunca se envía el programa ni el nombre del archivo =====
@@ -1459,7 +1511,6 @@ document.getElementById("labSelect").addEventListener("change", (e)=>{
   track("placa/"+lab.name, lab.asm?"ejemplo":"placa");
   const hz=parseClock(lab.clock)||DEFAULT_CLOCK_HZ; setClockHz(hz);   // 4 MHz unless the instructor's labs.js says otherwise
   setDiagram(lab.diagram);
-  showEditor(true);                         // the editor is the only way to load a program
   if(lab.asm){                              // an example: its source replaces the editor's, compiled and running
     edSetSource(lab.asm);
     if(compileAndLoad(lab.name) && /eeprom/i.test(lab.name))
@@ -1625,28 +1676,16 @@ function setSplit(on){
   try{ localStorage.setItem("np_split", on?"1":"0"); }catch(e){}
   if(on) renderPane("B", true);
 }
-// the dock holds two independent blocks (Debugger + Código); each opens/closes on its own,
-// so a student can have the debugger and the editor visible at the same time.
-let edPanelOpen=false;
-function syncDock(){
-  const layout=document.querySelector(".layout"); if(layout) layout.classList.toggle("no-dock", !(dbgOpen||edPanelOpen));
-  const td=document.getElementById("toggleDebug"), te=document.getElementById("toggleEditor");
-  if(td){ td.classList.toggle("active", dbgOpen); td.setAttribute("aria-pressed", dbgOpen?"true":"false"); }
-  if(te){ te.classList.toggle("active", edPanelOpen); te.setAttribute("aria-pressed", edPanelOpen?"true":"false"); }
-}
+// the dock holds the code editor (always open since 2026-10-11 — it's the only way to load a program,
+// and its gutter is where you debug) and the Debugger, which the app-bar button opens and closes.
 function showDebug(on){
   dbgOpen=on;
   const el=document.getElementById("dockDebug"); if(el) el.classList.toggle("hidden", !on);
+  const sp=document.getElementById("dockSplit"); if(sp) sp.classList.toggle("hidden", !on);
+  const td=document.getElementById("toggleDebug");
+  if(td){ td.classList.toggle("active", on); td.setAttribute("aria-pressed", on?"true":"false"); }
   try{ localStorage.setItem("np_dock", on?"1":"0"); }catch(e){}
-  syncDock();
   if(on && X){ rebuildProg(); refreshDebug(); }
-}
-function showEditor(on){
-  edPanelOpen=on;
-  const el=document.getElementById("dockEditor"); if(el) el.classList.toggle("hidden", !on);
-  try{ localStorage.setItem("np_editor", on?"1":"0"); }catch(e){}
-  syncDock();
-  if(on){ edRevealedLine=0; edDebugRender(); }   // just opened: bring the paused line into view
 }
 
 // stepping
@@ -1700,32 +1739,82 @@ panesEl.addEventListener("click",(e)=>{
 });
 panesEl.addEventListener("keydown",(e)=>{ if(e.key==="Enter" && e.target.classList && e.target.classList.contains("watchInput")){ e.preventDefault(); const paneEl=e.target.closest(".dbgPane"); if(paneEl) addWatchFromPane(paneEl); } });
 
-// dock width drag
+// dock width drag. --dock-w is the dock's *minimum*: when the board has reached its height cap the
+// dock is wider than that (it gets the leftover width), so a drag starts from the real width.
+// Dragging can't squeeze the board below 420 px.
 (function dockResizeInit(){
-  const handle=document.getElementById("dockResize"), layout=document.querySelector(".layout");
-  if(!handle||!layout) return;
-  try{ const s=localStorage.getItem("np_dock_w"); if(s) layout.style.setProperty("--dock-w", clamp(parseInt(s)||452,320,720)+"px"); }catch(e){}
-  const getW=()=>parseInt(getComputedStyle(layout).getPropertyValue("--dock-w"))||452;
-  let startX=0, startW=452, dragging=false;
-  handle.addEventListener("pointerdown",(e)=>{ dragging=true; startX=e.clientX; startW=getW(); handle.classList.add("drag"); try{handle.setPointerCapture(e.pointerId);}catch(_){} e.preventDefault(); });
-  handle.addEventListener("pointermove",(e)=>{ if(!dragging) return; layout.style.setProperty("--dock-w", clamp(startW-(e.clientX-startX),320,720)+"px"); });
-  const end=()=>{ if(!dragging) return; dragging=false; handle.classList.remove("drag"); try{ localStorage.setItem("np_dock_w", getW()); }catch(e){} };
+  const handle=document.getElementById("dockResize"), layout=document.querySelector(".layout"), dock=document.getElementById("dock");
+  if(!handle||!layout||!dock) return;
+  const maxW=()=>{ const cs=getComputedStyle(layout);
+    const inner=layout.clientWidth-parseFloat(cs.paddingLeft)-parseFloat(cs.paddingRight)-parseFloat(cs.columnGap||16);
+    return clamp(inner-420, 320, 900); };
+  // the saved width is what the student asked for; on a smaller window it's re-clamped so the board keeps its 420 px
+  let want=0; try{ want=parseInt(localStorage.getItem("np_dock_w"))||0; }catch(e){}
+  const applyWant=()=>{ if(want && !dragging) layout.style.setProperty("--dock-w", clamp(want,320,maxW())+"px"); };
+  let startX=0, startW=472, curW=472, dragging=false;
+  applyWant(); window.addEventListener("resize", applyWant);
+  handle.addEventListener("pointerdown",(e)=>{ dragging=true; startX=e.clientX; startW=curW=Math.round(dock.getBoundingClientRect().width);
+    handle.classList.add("drag"); try{handle.setPointerCapture(e.pointerId);}catch(_){} e.preventDefault(); });
+  handle.addEventListener("pointermove",(e)=>{ if(!dragging) return; curW=clamp(startW-(e.clientX-startX),320,maxW()); layout.style.setProperty("--dock-w", curW+"px"); });
+  const end=()=>{ if(!dragging) return; dragging=false; handle.classList.remove("drag"); want=curW; try{ localStorage.setItem("np_dock_w", curW); }catch(e){} };
   handle.addEventListener("pointerup", end); handle.addEventListener("pointercancel", end);
 })();
 
-// init panes + dock blocks (Debugger + Código toggle independently; saved choice wins)
+// editor / debugger divider: how the dock's height is shared while both are open (desktop only —
+// below 1200px the blocks stack by content). Stored as the editor's share, 0..1, in np_dock_split.
+(function dockSplitInit(){
+  const bar=document.getElementById("dockSplit"), inner=document.querySelector(".dockInner");
+  const ed=document.getElementById("dockEditor"), dbg=document.getElementById("dockDebug");
+  if(!bar||!inner||!ed||!dbg) return;
+  let frac=0.5; try{ const s=parseFloat(localStorage.getItem("np_dock_split")); if(s>0&&s<1) frac=s; }catch(e){}
+  // (both grow factors stay ≥ 1 — a lone flex item with grow < 1 only takes that fraction of the
+  //  free space — so with the Debugger closed the editor still fills the dock)
+  const apply=()=>{ const m=Math.min(frac,1-frac); ed.style.flexGrow=(frac/m).toFixed(3); dbg.style.flexGrow=((1-frac)/m).toFixed(3); };
+  apply();
+  let dragging=false, startY=0, startH=0, span=1;
+  bar.addEventListener("pointerdown",(e)=>{
+    const er=ed.getBoundingClientRect(), dr=dbg.getBoundingClientRect();
+    startY=e.clientY; startH=er.height; span=Math.max(1, er.height+dr.height);   // the height both blocks share (split by grow ratio)
+    dragging=true; bar.classList.add("drag"); try{bar.setPointerCapture(e.pointerId);}catch(_){} e.preventDefault(); });
+  bar.addEventListener("pointermove",(e)=>{ if(!dragging) return;
+    const lo=Math.min(0.45, 150/span);                                    // each block keeps at least ~150 px
+    frac=clamp((startH+e.clientY-startY)/span, lo, 1-lo); apply(); });
+  const end=()=>{ if(!dragging) return; dragging=false; bar.classList.remove("drag"); try{ localStorage.setItem("np_dock_split", frac.toFixed(3)); }catch(e){} };
+  bar.addEventListener("pointerup", end); bar.addEventListener("pointercancel", end);
+})();
+
+// Placa picker, transport and status line: in the app bar / under the board on desktop, back in the
+// «Placa» / «Simulación» cards on phones (≤920px), exactly where they were before 2026-10-11.
+// The nodes are moved (not cloned), so their listeners and state go with them.
+(function placeControls(){
+  const mq=window.matchMedia("(max-width:920px)");
+  const sel=document.getElementById("labSelect"), row=document.getElementById("simRow"), st=document.getElementById("status");
+  const apply=()=>{
+    if(mq.matches){
+      document.getElementById("placaCard").appendChild(sel);
+      document.getElementById("simCard").appendChild(row);
+      document.getElementById("rail").appendChild(st);
+    }else{
+      document.getElementById("barPlaca").appendChild(sel);
+      document.getElementById("barSim").appendChild(row);
+      document.querySelector(".stage").appendChild(st);   // (not stageEl: that const is declared further down)
+    }
+  };
+  apply();
+  if(mq.addEventListener) mq.addEventListener("change", apply); else if(mq.addListener) mq.addListener(apply);
+})();
+
+// init panes + the Debugger (saved choice wins; by default open on wide screens)
 populatePaneSelects();
 document.getElementById("paneClose").addEventListener("click", ()=> setSplit(false));   // ✕ on pane B
 document.getElementById("paneSplit").addEventListener("click", ()=> setSplit(true));     // ⊞ on pane A (visible when single)
 setSplit(dbgSplit);
 document.getElementById("toggleDebug").addEventListener("click", ()=>{ if(!dbgOpen) trackOnce("debugger/abrir",""); showDebug(!dbgOpen); });
-document.getElementById("toggleEditor").addEventListener("click", ()=>{ if(!edPanelOpen) trackOnce("editor/abrir",""); showEditor(!edPanelOpen); });
 document.getElementById("closeDebug").addEventListener("click", ()=> showDebug(false));
-document.getElementById("closeEditor").addEventListener("click", ()=> showEditor(false));
 (function initDockState(){
   let d; try{ const s=localStorage.getItem("np_dock"); d = (s==null) ? window.matchMedia("(min-width:1200px)").matches : s==="1"; }catch(e){ d=true; }
-  let ed=false; try{ ed = localStorage.getItem("np_editor")==="1"; }catch(e){}
-  showDebug(d); showEditor(ed);
+  showDebug(d);
+  try{ localStorage.removeItem("np_editor"); }catch(e){}   // (the old Código toggle's saved state)
 })();
 
 // ===== Editor de código (ASM): compila en el navegador, carga el programa y es donde se depura =====
@@ -1807,7 +1896,7 @@ function edDebugRender(){
   const pcLine = (fresh && X && !running) ? (edMap.lineOf.get(X.np_pc())||0) : 0;
   NP_EDITOR.setMarks({ pc:pcLine, bps:bpLines, pending:!fresh, err:edErrLine });
   if(!pcLine) edRevealedLine=0;
-  else if(edPanelOpen && pcLine!==edRevealedLine){ NP_EDITOR.revealLine(pcLine); edRevealedLine=pcLine; }
+  else if(pcLine!==edRevealedLine){ NP_EDITOR.revealLine(pcLine); edRevealedLine=pcLine; }
 }
 // keep breakpoints on "their" lines across an edit: diff the old and new text by common prefix/suffix
 function edShiftBps(a, b){
@@ -1861,7 +1950,7 @@ edSrcEl.addEventListener("keydown",(e)=>{ if(e.key==="Tab"){ e.preventDefault();
   const s=edSrcEl.selectionStart, en=edSrcEl.selectionEnd;
   edSrcEl.value=edSrcEl.value.slice(0,s)+"    "+edSrcEl.value.slice(en);
   edSrcEl.selectionStart=edSrcEl.selectionEnd=s+4; edChanged(); } });
-// (the editor lives in the right dock's "Código" block — toggled by showEditor in the Debugger section)
+// (the editor lives in the right dock's "Código" block — always open since 2026-10-11)
 document.getElementById("edDownload").addEventListener("click", ()=>{
   const blob=new Blob([edSrcEl.value], {type:"text/plain;charset=utf-8"});
   const a=document.createElement("a"); a.href=URL.createObjectURL(blob);
@@ -1873,7 +1962,7 @@ document.getElementById("edClear").addEventListener("click", ()=>{
   edSetSource(""); edStatus(""); edSrcEl.focus();
 });
 async function edOpenFile(f, how){
-  try{ edSetSource(await f.text()); showEditor(true); edStatus("Cargado “"+f.name+"” en el editor — tocá «Compilar y cargar».",""); track("editor/cargar-asm", how); }
+  try{ edSetSource(await f.text()); edStatus("Cargado “"+f.name+"” en el editor — tocá «Compilar y cargar».",""); track("editor/cargar-asm", how); }
   catch(err){ edStatus("No se pudo leer el archivo.","err"); }
 }
 document.getElementById("edFile").addEventListener("change", async (e)=>{

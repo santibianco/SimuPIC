@@ -7,6 +7,41 @@ classroom (codename *New Proteus*). **Shipped and live:**
 
 ## Session log (newest first) — update this at the end of each session
 
+- **2026-10-11, later (app-bar redesign: Placa + transport in the top bar · editor always open · bigger board)** —
+  Santiago: with the .hex upload gone the editor is the only way in, so it shouldn't be a toggle; move Placa and
+  ▶/■ up next to the other controls and give the PIC the space. Desktop only — phones stay as they were.
+  1. **Top bar** (`.barCtrls` after the brand): «PLACA» + `#labSelect`, then `#simRow` (▶/⏸, ■, cronómetro). The
+     «Código» toggle and the editor's ✕ are gone (`showEditor`, `edPanelOpen`, `np_editor` removed; the old key is
+     cleared on load). Debugger / Instrucciones / Manual stay; between 921–1280px they go icon-only.
+     The picker has an accent ring (`.select.needs`) until a placa is chosen; the empty-board hint says «arriba».
+  2. **No left column on desktop.** Grid is `minmax(0, --board-max) minmax(--dock-w, 1fr)`: `--board-max` =
+     `(100vh − 79 − 63) × 920/640`, the widest board that fits under the bar with a **2-line status line under it**
+     (reserved, so a long message never makes the page scroll); leftover width goes to the dock/editor. Page height
+     is exactly 100vh on desktop (dock height `--dock-h`). Board at 1366×640: 550×383 → **716×498**; 1536×700:
+     **802×558**; 1920×945: 1024×712 → **1154×803**. 920–1200px: board centred (capped), dock below as before.
+     The zoom hint row is now the status line (the hint lives in the magnifier's tooltip; phones still show it).
+  3. **Dock**: editor on top (CSS `order`; the DOM keeps debugger first, which is what ≤1200px stacks), a draggable
+     **divider** `#dockSplit` when the debugger is open (editor share in `np_dock_split`, each block ≥150px; grow
+     factors kept ≥1 so a lone editor still fills). The editor's title moved into its button row. Dock-width drag
+     now starts from the *real* width (it's wider than `--dock-w` when the board is capped — no dead zone), clamps
+     so the board keeps ≥420px, and a saved width is re-clamped on smaller windows.
+  4. **Phones (≤920px) unchanged**: `placeControls()` (matchMedia) moves the *same nodes* back into `#placaCard` /
+     `#simCard` / the rail, so the order is Placa · board · hint · Simulación · status · dock as before.
+  5. Docs: manual §2/§3/§4/§5/§7/§8/§9 (no «columna izquierda» / «panel Simulación» / «botón Código»; the divider) →
+     `help.js` rebuilt; DEPLOY.md analytics table (`editor/abrir` gone); README student steps; `sw.js` → **simupic-v7**.
+  **Tests:** headless Playwright, 43 checks green — 12 widths 921…2560 (bar 61px, no overflow, no page scroll
+  >1200px), no Código toggle, editor visible before a placa, accent ring on/off, ▶/⏸/■ + Space from the bar,
+  divider show/hide/drag/clamp/persist, dock drag from real width + clamp + re-clamp on a smaller window,
+  compile, status under the board, desktop ⇄ phone resize moves the controls and back (listeners intact),
+  iPhone 13 / Pixel 7 / iPad Mini order identical to before, no console errors; `test-isa.js` green.
+  Pure runtime change → no wasm rebuild / embed / verify-core. *Uncommitted.*
+  Layout `max-width` 1840 → **2560** (the board is height-capped now, so big monitors get to use it).
+  **Live in Santiago's Chrome** (Windows, localhost:8080, cache `simupic-v7`): maximized 3072×1566 window → board
+  2046×1424, no scroll; a 1366×657 frame → board 740×515, the bar fits with Segoe UI and shows the full example name;
+  1100×700 → board centred, dock below; a 390×844 frame → Placa / Simulación cards back, same order as before.
+  (The window is maximized, so resize_window does nothing: sizes were checked with same-origin iframes written into
+  `authoring.html`, which has no CSP — the app's own CSP blocks frames.)
+
 - **2026-10-11 (no more .hex upload · debugging on the source code · clock removed)** —
   Santiago: nobody uses the .hex upload any more (students use the editor), so remove it — which lets the
   debugger work line by line, with breakpoints, **in the code editor** instead of only in program memory.
