@@ -118,23 +118,18 @@
   .file-list{ display:flex; flex-direction:column; gap:8px; }
   #wasmWrap.hidden{ display:none; }
   input[type=file]{ display:none; }
-  .select, .input{ width:100%; background:var(--surface-2); color:var(--text);
+  .select{ width:100%; background:var(--surface-2); color:var(--text);
     border:1px solid var(--border); border-radius:10px; padding:9px 11px; font-size:13.5px; font-family:inherit; }
   .select{ cursor:pointer; }
   .select:disabled{ opacity:.55; cursor:not-allowed; }
-  .input{ font-family:ui-monospace, monospace; }
-  .field{ margin-top:12px; }
-  .field>label{ display:block; font-size:12px; color:var(--text-dim); margin-bottom:5px; }
-  .range{ width:100%; margin-top:9px; accent-color:var(--accent); cursor:pointer; }
   .readout{ font:12px/1 ui-monospace, monospace; color:var(--text-dim); letter-spacing:.02em; }
-  /* compact Simulación card: stopwatch sits beside the transport, Hz beside the Reloj label */
+  /* compact Simulación card: stopwatch sits beside the transport. (The «Reloj» control was removed
+     on 2026-10-11 — the PIC always runs at 4 MHz; an instructor can still set `clock` per board in labs.js.) */
   .sim-row{ display:flex; align-items:center; gap:10px; }
   .sim-row .transport{ flex:1 1 auto; }
   .sim-row #simReadout{ flex:0 0 auto; }
-  .clock-line{ display:flex; align-items:baseline; justify-content:space-between; gap:8px; margin-bottom:6px; }
-  .clock-line label{ font-size:12px; color:var(--text-dim); }
-  .clock-line #clockVal{ font-size:11.5px; }
-  .stage.drop .board-wrap{ outline:2px dashed var(--accent); outline-offset:6px; border-radius:18px; }
+  /* a file dragged over the page: dropping an .asm opens it in the code editor */
+  body.drop #dockEditor .edWrap, body.drop .stage .board-wrap{ outline:2px dashed var(--accent); outline-offset:4px; }
 
   .status{ font-size:12px; color:var(--text-dim); }
   .status.ok{ color:var(--ok); }
@@ -182,7 +177,7 @@
     border:1px solid var(--border); border-radius:16px; padding:14px 16px; box-shadow:var(--shadow-sm);
     font-family:ui-monospace, monospace; font-size:12px; color:var(--text-dim); }
   .dbgPanel.hidden{ display:none; }
-  /* ===== code editor (ASM -> .hex) ===== */
+  /* ===== code editor (ASM): where programs are written, compiled and debugged ===== */
   .edPanel{ display:flex; flex-direction:column; gap:10px;
     font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
   .edBar{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
@@ -195,13 +190,25 @@
   /* the gutter, the highlight layer and the textarea share identical text metrics so they overlap 1:1 */
   .edGutter, .edHl, .edSrc{ font-family:ui-monospace, "SF Mono", Menlo, Consolas, monospace;
     font-size:13px; line-height:1.5; tab-size:4; -moz-tab-size:4; }
+  /* (gutter + highlight layer get extra bottom padding so they can always scroll as far as the
+     textarea, even when its horizontal scrollbar eats into its height) */
   .edGutter{ flex:0 0 auto; overflow:hidden; box-sizing:border-box; text-align:right; white-space:pre;
-    padding:10px 8px 10px 10px; color:var(--text-faint); background:var(--surface-2);
-    border-right:1px solid var(--border-soft); user-select:none; -webkit-user-select:none; }
+    padding:10px 0 40px 0; color:var(--text-faint); background:var(--surface-2);
+    border-right:1px solid var(--border-soft); user-select:none; -webkit-user-select:none; cursor:pointer; }
+  /* one row per line: room on the left for the breakpoint dot; the PC row carries the green band */
+  .edGutter .gl{ position:relative; padding:0 8px 0 23px; }
+  .edGutter .gl::before{ content:""; position:absolute; left:8px; top:50%; width:9px; height:9px; margin-top:-4.5px;
+    border-radius:50%; box-sizing:border-box; background:var(--err); opacity:0; transition:opacity .1s; }
+  .edGutter .gl:hover::before{ opacity:.28; }          /* hover ghost: «click here to set a breakpoint» */
+  .edGutter .gl.bp::before{ opacity:1; }
+  .edGutter .gl.bp.pend::before{ background:transparent; border:1.5px solid var(--err); }   /* code changed: applies on the next compile */
+  .edGutter .gl.pc{ background:var(--pc-row); color:var(--text); font-weight:700; box-shadow:inset 3px 0 0 var(--ok); }
+  .edGutter .gl.err{ color:var(--err); font-weight:700; }
   .edField{ position:relative; flex:1 1 auto; min-width:0; }
   .edHl{ position:absolute; inset:0; margin:0; overflow:hidden; pointer-events:none; box-sizing:border-box;
-    padding:10px 12px; white-space:pre; color:var(--text); background:transparent; }
-  .edHl code{ font:inherit; }
+    padding:10px 12px 40px; white-space:pre; color:var(--text); background:transparent; }
+  .edHl code{ font:inherit; position:relative; }     /* positioned → paints above the PC band */
+  .edPcBand{ position:absolute; left:0; display:none; background:var(--pc-row); pointer-events:none; }
   /* el layer no recibe eventos, pero los mnemónicos sí: así elementsFromPoint los encuentra
      debajo del textarea y el tooltip de instrucción puede dispararse al pasar el mouse. */
   .edHl .tk-key{ pointer-events:auto; }
@@ -312,7 +319,7 @@
     border:1px solid var(--border-soft); border-radius:11px; font-family:ui-monospace, monospace; font-size:12px; color:var(--text-dim); }
   .dbgRegs{ display:flex; flex-wrap:wrap; gap:5px 14px; align-items:center; }
   .dbgRegs b{ color:var(--text); font-weight:700; }
-  .dbgStep{ display:flex; gap:6px; }
+  .dbgStep{ display:flex; gap:6px; flex-wrap:wrap; }
   .dbgPanes{ flex:1 1 auto; min-height:0; display:grid; grid-template-columns:1fr 1fr; gap:10px; }
   .dbgPane{ min-width:0; min-height:0; display:flex; flex-direction:column;
     border:1px solid var(--border-soft); border-radius:11px; overflow:hidden; background:var(--code-bg); }
@@ -535,11 +542,6 @@
       <span class="barbtn-tx">Núcleo</span>
       <input id="wasmFile" type="file" accept=".wasm" />
     </label>
-    <label id="loadHexBtn" class="barbtn" title="Cargar un programa (.hex)" aria-label="Cargar programa .hex">
-      <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>
-      <span class="barbtn-tx">Cargar .hex</span>
-      <input id="hexFile" type="file" accept=".hex" />
-    </label>
     <button id="toggleEditor" class="barbtn" title="Mostrar u ocultar el editor de código" aria-label="Editor de código" aria-pressed="false">
       <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><path d="M9 8.5 5.5 12 9 15.5M15 8.5 18.5 12 15 15.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
       <span class="barbtn-tx">Código</span>
@@ -590,14 +592,6 @@
           </div>
           <span id="simReadout" class="readout" title="Tiempo real de ejecución">00:00:000</span>
         </div>
-        <div class="field">
-          <div class="clock-line">
-            <label for="clock">Reloj</label>
-            <span id="clockVal" class="status ok">4,000,000 Hz</span>
-          </div>
-          <input id="clock" class="input" type="text" value="4 MHz" />
-          <input id="clockRange" class="range" type="range" min="0" max="0" value="0" aria-label="Velocidad del reloj" />
-        </div>
       </div>
 
       <div id="status" class="status">Cargando núcleo…</div>
@@ -645,7 +639,7 @@
             <span class="dbgFlags" id="dbgFlags"></span>
           </div>
           <div class="dbgStep">
-            <button id="stepBtn" disabled>Paso ▸</button>
+            <button id="stepBtn" disabled title="Ejecutar una instrucción">Paso ▸</button>
             <button id="step10" disabled>×10</button>
             <button id="step100" disabled>×100</button>
           </div>
@@ -702,7 +696,7 @@
   </div>
 
 <!-- Optional embedded core: `core-wasm.js` defines window.NP_WASM_BASE64 so the
-     page is self-contained and you only pick a .hex. Missing file is harmless. -->
+     page is self-contained. Missing file is harmless (the page then offers a .wasm picker). -->
 
   <!-- ===== manual de usuario (generado desde docs/manual.md) ===== -->
   <div class="ovl" id="helpOvl" role="dialog" aria-modal="true" aria-labelledby="helpTitle" hidden>
@@ -777,26 +771,34 @@ const LED_DIAGRAM = {
 const SEG_DIAGRAM = {
   components: [ { type: "sevenseg", pins: ["RB0","RB1","RB2","RB3","RB4","RB5","RB6"], common: null } ],
 };
-const BLINK_HEX = ":0A000000831686018312860A032886\n:00000001FF\n";
-const BLINK_ASM = [
-  "; Parpadeo — incrementa PORTB sin parar; RB0 es el bit que cambia más rápido.",
-  "    ORG     0",
-  "    bsf     STATUS,RP0    ; banco 1",
-  "    clrf    TRISB         ; PORTB como salida",
-  "    bcf     STATUS,RP0    ; banco 0",
-  "loop",
-  "    incf    PORTB,f       ; PORTB = PORTB + 1",
-  "    goto    loop",
-  "    END",
-  ""
-].join("\n");
-const SEG_COUNTER_HEX =
-  ":10000000831686018312A00120080E208600192085\n" +
-  ":10001000A00A0A3020020319A001042882073F34F5\n" +
-  ":1000200006345B344F3466346D347D3407347F34AA\n" +
-  ":100030006F34FF30A100FF30A200A20B1D28A10BDE\n" +
-  ":040040001B28080071\n" +
-  ":00000001FF\n";
+// (until 2026-10 this example ran at 1 kHz so a bare incf loop was visible; the clock is now
+//  always 4 MHz, so it blinks with a real delay loop instead — ~2.5 Hz)
+const BLINK_ASM = `; Parpadeo — prende y apaga el LED de RB0 (unas 2,5 veces por segundo a 4 MHz).
+CONT1   EQU     0x20            ; contadores de la demora
+CONT2   EQU     0x21
+
+        ORG     0
+        bsf     STATUS,RP0      ; banco 1
+        clrf    TRISB           ; PORTB como salida
+        bcf     STATUS,RP0      ; banco 0
+        clrf    PORTB
+loop
+        movlw   0x01
+        xorwf   PORTB,f         ; invertir RB0
+        call    demora          ; esperar ~0,2 s
+        goto    loop
+
+demora                          ; 256 × 256 vueltas de ~3 ciclos ≈ 197.000 ciclos ≈ 0,2 s
+        clrf    CONT1
+        clrf    CONT2
+espera
+        decfsz  CONT1,f
+        goto    espera
+        decfsz  CONT2,f
+        goto    espera
+        return
+        END
+`;
 const SEG_COUNTER_ASM = `; Contador de 7 segmentos — cuenta 0..9 en un display conectado a PORTB (RB0..RB6).
 CONT    EQU     0x20            ; dígito actual (0..9)
 D1      EQU     0x21            ; contadores de la demora
@@ -852,16 +854,6 @@ const LAB_DIAGRAM = { name:"Two-digit counter", components:[
   {type:"sevenseg", pins:["RB0","RB1","RB2","RB3","RB4","RB5","RB6"], common:"RA1", commonActiveLow:false},
   {type:"sevenseg", pins:["RB0","RB1","RB2","RB3","RB4","RB5","RB6"], common:"RA0", commonActiveLow:false},
 ]};
-const MUX_COUNTER_HEX =
-  ":1000000083168601FC308500831207309F0085012E\n" +
-  ":100010008601A001A101A201A301850120082E20D3\n" +
-  ":10002000860005143920850121082E2086008514BC\n" +
-  ":100030003920A20F0D28A30A03302302031D0D2827\n" +
-  ":10004000A301A00A0A302002031D0D28A001A10A65\n" +
-  ":100050000A302102031D0D28A1010D2882073F341B\n" +
-  ":1000600006345B344F3466346D347D3407347F346A\n" +
-  ":0C0070006F344030A400A40B3B280800B3\n" +
-  ":00000001FF\n";
 const MUX_COUNTER_ASM = `; Contador multiplexado de 2 dígitos — unidades (display en RA0) y decenas (RA1),
 ; segmentos compartidos en PORTB. Se multiplexa rápido para que se vean ambos.
 UNI     EQU     0x20            ; dígito de unidades (0..9)
@@ -941,14 +933,6 @@ demora1
         return
         END
 `;
-const EEPROM_COUNTER_HEX =
-  ":10000000831686019B011C141A08F00083120A3023\n" +
-  ":1000100070020318F001F00A0A3070020319F001AF\n" +
-  ":1000200083169B0170089A001C1555309D00AA305C\n" +
-  ":100030009D009C14831270081F2086001B288207D5\n" +
-  ":100040003F3406345B344F3466346D347D340734CA\n" +
-  ":040050007F346F3456\n" +
-  ":00000001FF\n";
 const EEPROM_COUNTER_ASM = `; Contador en EEPROM — el conteo sobrevive al reinicio (se guarda en la EEPROM
 ; interna). En cada arranque lee el último valor, lo incrementa y lo vuelve a guardar.
 CONT    EQU     0x70            ; RAM común (visible en todos los bancos)
@@ -1349,9 +1333,13 @@ let components=[], running=false;   // no default board — the stage stays empt
 let boardLoaded=false;               // becomes true once setDiagram() loads a board (see .stage.empty)
 let dbgOpen=true, dbgTick=0;
 const view={ zoom:1, panX:0, panY:0, base:1 };   // board view transform (zoom + pan); base fits the 920-wide board to the canvas, recomputed each frame
-const breakSet=new Set();
+const breakSet=new Set();                   // breakpoints by program address — what the core halts on
+// editor debugger (see the «Editor de código» section): line map of the program in the core, the exact
+// text it was compiled from, breakpoints by editor line, the last compile-error line
+let edMap=null, edCompiledSrc=null, edErrLine=0, edRevealedLine=0;
+const bpLines=new Set();
 const SUBSTEPS=64;
-let clockHz=4000000;
+let clockHz=4000000;                        // fixed 4 MHz (see the clock section); labs.js may override per board
 let cycleBudget=0; // carries fractional cycles so low clocks run < 1 cycle/frame
 let runRealMs=0, lastTick=performance.now(); // wall-clock stopwatch: real time the sim has run, independent of the PIC clock
 function frame(){
@@ -1409,39 +1397,50 @@ function coreReady(){ populateLabs(); enable(["labSelect","stepBtn","step10","st
 function setBoardLoaded(on){ boardLoaded=on; if(stageEl) stageEl.classList.toggle("empty", !on);
   const b=document.getElementById("edBuild"); if(b){ b.disabled=!on; b.title=on?"":"Elegí una placa antes de compilar"; } }
 function setDiagram(d){ components=build(d); setBoardLoaded(true); resetView(); }
-// ===== estadísticas de uso (GoatCounter): contadores anónimos de eventos — nunca se envía el programa, el .hex ni el nombre del archivo =====
+// ===== estadísticas de uso (GoatCounter): contadores anónimos de eventos — nunca se envía el programa ni el nombre del archivo =====
 function track(path, title){ try{ if(window.goatcounter && goatcounter.count) goatcounter.count({ path:path, title:title||"", event:true }); }catch(e){} }
 // trackOnce(): «esta sesión usó la función X» — un hit por carga de página y por ruta, así el total ≈ sesiones que la usaron
 const trackedOnce=new Set();
 function trackOnce(path, title){ if(trackedOnce.has(path)) return; trackedOnce.add(path); track(path, title); }
-function afterHex(ok,name){ if(!ok){ setStatus("No se pudo leer "+name,"err"); return; }
+// Load an assembled program (NP_ASM.assemble() result) into the core and start it. The Intel HEX
+// it carries is internal plumbing — the core's loader — students never handle a .hex: since
+// 2026-10-11 the code editor is the only way a program gets into SimuPIC.
+function loadProgram(res, src, name){
+  running=false;                            // (not setRunning: that would flash the PC band of the old program)
+  if(!loadHex(res.hex)){ setStatus("No se pudo cargar "+name+".","err"); setRunning(false); return false; }
   X.np_reset(); for(const c of components) if(c.idle) c.idle();
   enable(["playPauseBtn","stopBtn"],true);
+  breakSet.clear(); X.np_clear_breaks();
+  edProgramLoaded(res, src);              // editor debugger: line map + re-apply the editor's breakpoints
   runRealMs=0; setRunning(true);
-  setStatus("Cargado "+name+" ✓ — ejecutando.","ok"); breakSet.clear(); if(X) X.np_clear_breaks(); if(dbgOpen){ rebuildProg(); refreshDebug(); } }
+  setStatus("Cargado "+name+" ✓ — ejecutando.","ok");
+  if(dbgOpen){ rebuildProg(); refreshDebug(); }
+  return true;
+}
 
 document.getElementById("wasmFile").addEventListener("change", async (e)=>{
   const f=e.target.files[0]; if(!f) return;
-  try{ await instantiate(await f.arrayBuffer()); coreReady(); setStatus("Núcleo cargado ✓ — elegí una placa o cargá un .hex.","ok"); }
+  try{ await instantiate(await f.arrayBuffer()); coreReady(); setStatus("Núcleo cargado ✓ — elegí una placa o un ejemplo.","ok"); }
   catch(err){ setStatus("Error al cargar el WASM: "+err,"err"); }
 });
-document.getElementById("hexFile").addEventListener("change", async (e)=>{ const f=e.target.files[0]; if(!f||!X) return; const ok=loadHex(await f.text()); afterHex(ok,f.name); if(ok){ clearEditorSource(); track("cargar-hex","archivo"); } });
 // Boards are set up by the teacher (via labs.js / the authoring tool), not loaded
 // ad-hoc by students — so there is no diagram upload here, only the "Placa" dropdown.
-function setClock(str){ document.getElementById("clock").value=str; applyClock(); }
 // ===== boards / labs (demos are built in; instructor boards come from labs.js) =====
+// The examples carry their source and are compiled on the spot, like a student's program
+// (they used to ship a prebuilt .hex too — byte-identical, checked when it was removed).
 const BUILTIN_LABS = [
-  { name:"Ejemplo · Parpadeo (LED en RB0)",                   group:"Ejemplos", diagram:LED_DIAGRAM, hex:BLINK_HEX, asm:BLINK_ASM,          clock:"1 kHz" },
-  { name:"Ejemplo · Contador de 7 segmentos",                 group:"Ejemplos", diagram:SEG_DIAGRAM, hex:SEG_COUNTER_HEX, asm:SEG_COUNTER_ASM,    clock:"4 MHz" },
-  { name:"Ejemplo · Contador multiplexado de 2 dígitos",      group:"Ejemplos", diagram:LAB_DIAGRAM, hex:MUX_COUNTER_HEX, asm:MUX_COUNTER_ASM,    clock:"4 MHz" },
-  { name:"Ejemplo · Contador EEPROM (sobrevive al reinicio)",  group:"Ejemplos", diagram:SEG_DIAGRAM, hex:EEPROM_COUNTER_HEX, asm:EEPROM_COUNTER_ASM, clock:"4 MHz" },
+  { name:"Ejemplo · Parpadeo (LED en RB0)",                   group:"Ejemplos", diagram:LED_DIAGRAM, asm:BLINK_ASM },
+  { name:"Ejemplo · Contador de 7 segmentos",                 group:"Ejemplos", diagram:SEG_DIAGRAM, asm:SEG_COUNTER_ASM },
+  { name:"Ejemplo · Contador multiplexado de 2 dígitos",      group:"Ejemplos", diagram:LAB_DIAGRAM, asm:MUX_COUNTER_ASM },
+  { name:"Ejemplo · Contador EEPROM (sobrevive al reinicio)",  group:"Ejemplos", diagram:SEG_DIAGRAM, asm:EEPROM_COUNTER_ASM },
 ];
 // labs.js may set window.NP_LABS to authoring-tool exports ({name, group?, components})
-// or full lab objects ({name, group?, diagram, hex?, clock?}). `group` is the dropdown
-// heading the teacher picks; it defaults to "Trabajos Prácticos". The teacher's boards
-// come first, the built-in "Ejemplos" last.
+// or full lab objects ({name, group?, diagram, clock?}). `group` is the dropdown
+// heading the teacher picks; it defaults to "Trabajos Prácticos". `clock` (e.g. "1 kHz")
+// is instructor-only: there is no clock control in the UI, every board defaults to 4 MHz.
+// The teacher's boards come first, the built-in "Ejemplos" last.
 const USER_LABS = (Array.isArray(window.NP_LABS) ? window.NP_LABS : [])
-  .map((d)=> d && d.components && !d.diagram ? { name:d.name||"Placa sin nombre", group:d.group, diagram:d, hex:d.hex, clock:d.clock } : d)
+  .map((d)=> d && d.components && !d.diagram ? { name:d.name||"Placa sin nombre", group:d.group, diagram:d, clock:d.clock } : d)
   .filter((l)=> l && l.diagram);
 const LABS = USER_LABS.concat(BUILTIN_LABS);
 
@@ -1457,26 +1456,28 @@ function populateLabs(){
 document.getElementById("labSelect").addEventListener("change", (e)=>{
   const v=e.target.value; if(v===""||!X) return;
   const lab=LABS[+v];
-  track("placa/"+lab.name, lab.hex?"ejemplo":"placa");
-  setClock(lab.clock||"4 MHz");
+  track("placa/"+lab.name, lab.asm?"ejemplo":"placa");
+  const hz=parseClock(lab.clock)||DEFAULT_CLOCK_HZ; setClockHz(hz);   // 4 MHz unless the instructor's labs.js says otherwise
   setDiagram(lab.diagram);
-  if(lab.asm){ edSrcEl.value=lab.asm; edSave(); showEditor(true); }
-  else if(lab.hex){ clearEditorSource(); }   // example with a .hex but no source → don't show unrelated code
-  if(lab.hex){
-    afterHex(loadHex(lab.hex), lab.name);
-    if(/eeprom/i.test(lab.name)) setStatus("Cargado "+lab.name+" ✓ — apretá Detener (■) para cortar la energía y volvé a Ejecutar; el conteo se mantiene.","ok");
+  showEditor(true);                         // the editor is the only way to load a program
+  if(lab.asm){                              // an example: its source replaces the editor's, compiled and running
+    edSetSource(lab.asm);
+    if(compileAndLoad(lab.name) && /eeprom/i.test(lab.name))
+      setStatus("Cargado "+lab.name+" ✓ — apretá Detener (■) para cortar la energía y volvé a Ejecutar; el conteo se mantiene.","ok");
   }else{
     for(const c of components) if(c.idle) c.idle();
-    setStatus("Placa “"+lab.name+"” cargada ✓ — ahora cargá tu programa (.hex).","ok");
+    setStatus("Placa “"+lab.name+"” cargada ✓"+(hz!==DEFAULT_CLOCK_HZ?" (reloj de "+fmtHz(hz)+")":"")+
+              " — escribí tu programa en «Código» y tocá «Compilar y cargar».","ok");
   }
 });
 // ===== transport: play / pause / stop trio (play stays lit while running) =====
 const playPauseBtn=document.getElementById("playPauseBtn"), stopBtn=document.getElementById("stopBtn");
 function setRunning(on){ running=on; playPauseBtn.classList.toggle("active", on); // .active (running) → shows the pause glyph
-  playPauseBtn.setAttribute("aria-label", on?"Pausar":"Ejecutar"); playPauseBtn.title=(on?"Pausar":"Ejecutar")+" (Espacio)"; }
+  playPauseBtn.setAttribute("aria-label", on?"Pausar":"Ejecutar"); playPauseBtn.title=(on?"Pausar":"Ejecutar")+" (Espacio)";
+  edDebugRender(); }                         // the editor's PC band shows only while stopped
 function play(){ if(playPauseBtn.disabled||!X||running) return; if(breakSet.has(X.np_pc())) X.np_step(); setRunning(true); }
 function pause(){ if(playPauseBtn.disabled||!running) return; trackOnce("debugger/pausa",""); setRunning(false); if(dbgOpen) refreshDebug(); }
-function stop(){ if(stopBtn.disabled||!X) return; setRunning(false); X.np_reset(); runRealMs=0; for(const c of components){ if(c.idle) c.idle(); if(c.clear) c.clear(); } if(dbgOpen) refreshDebug(); }
+function stop(){ if(stopBtn.disabled||!X) return; setRunning(false); X.np_reset(); runRealMs=0; for(const c of components){ if(c.idle) c.idle(); if(c.clear) c.clear(); } if(dbgOpen) refreshDebug(); edDebugRender(); }
 function togglePlay(){ if(running) pause(); else play(); }
 playPauseBtn.addEventListener("click", togglePlay);
 stopBtn.addEventListener("click", stop);
@@ -1645,11 +1646,12 @@ function showEditor(on){
   const el=document.getElementById("dockEditor"); if(el) el.classList.toggle("hidden", !on);
   try{ localStorage.setItem("np_editor", on?"1":"0"); }catch(e){}
   syncDock();
+  if(on){ edRevealedLine=0; edDebugRender(); }   // just opened: bring the paused line into view
 }
 
 // stepping
 function snapBoard(){ if(!X) return; const pa=X.np_read_porta(), pb=X.np_read_portb(); for(const c of components){ if(c.reset)c.reset(); if(c.sample)c.sample(pa,pb); if(c.integrate)c.integrate(1); } }
-function stepN(n){ if(!X) return; setRunning(false); for(let i=0;i<n;i++){ X.np_step(); if(breakSet.has(X.np_pc())) break; } snapBoard(); refreshDebug(); }
+function stepN(n){ if(!X) return; setRunning(false); for(let i=0;i<n;i++){ X.np_step(); if(breakSet.has(X.np_pc())) break; } snapBoard(); refreshDebug(); edDebugRender(); }
 function stepOnce(){ stepN(1); }
 document.getElementById("stepBtn").addEventListener("click", ()=>{ trackOnce("debugger/paso",""); stepOnce(); });
 document.getElementById("step10").addEventListener("click", ()=>{ trackOnce("debugger/paso-10",""); stepN(10); });
@@ -1683,7 +1685,9 @@ panesEl.addEventListener("click",(e)=>{
   const prow=e.target.closest(".progRow");
   if(prow){ const a=+prow.dataset.a;
     if(breakSet.has(a)){ breakSet.delete(a); X.np_clear_break(a); } else { breakSet.add(a); X.np_set_break(a); trackOnce("debugger/breakpoint",""); }
-    document.querySelectorAll(`.progRow[data-a="${a}"] .bp`).forEach(b=>b.classList.toggle("on", breakSet.has(a))); return; }
+    document.querySelectorAll(`.progRow[data-a="${a}"] .bp`).forEach(b=>b.classList.toggle("on", breakSet.has(a)));
+    edBpsFromCore(); edDebugRender();         // same breakpoints as the editor's gutter (when the code is the compiled one)
+    return; }
   const bank=e.target.closest(".bankBtn");
   if(bank && id){ panes[id].bank=+bank.dataset.bank; savePanes(); renderPane(id,true); return; }
   if(e.target.closest(".watchAdd") && paneEl){ addWatchFromPane(paneEl); return; }
@@ -1724,7 +1728,7 @@ document.getElementById("closeEditor").addEventListener("click", ()=> showEditor
   showDebug(d); showEditor(ed);
 })();
 
-// ===== Editor de código (ASM → .hex): compila en el navegador y se carga como un .hex =====
+// ===== Editor de código (ASM): compila en el navegador, carga el programa y es donde se depura =====
 const ED_SAMPLE = [
   "; Contador en PORTB (LEDs RB0..RB7).",
   "; Tocá «Compilar y cargar» y mirá el conteo en la placa.",
@@ -1752,21 +1756,111 @@ const ED_SAMPLE = [
 const edSrcEl=document.getElementById("edSrc"), edStatusEl=document.getElementById("edStatus");
 try{ const saved=localStorage.getItem("np_src"); if(saved!=null) edSrcEl.value=saved; }catch(e){}
 if(!edSrcEl.value.trim()) edSrcEl.value=ED_SAMPLE;
+let edLastSrc=edSrcEl.value;               // the text before the latest edit — to move breakpoints with their lines
+try{ const b=JSON.parse(localStorage.getItem("np_bps")||"[]"); if(Array.isArray(b)) b.forEach((n)=>{ if(n>0) bpLines.add(n|0); }); }catch(e){}
 function edSave(){ try{ localStorage.setItem("np_src", edSrcEl.value); }catch(e){} if(window.NP_EDITOR) NP_EDITOR.refresh(); }
 function edStatus(msg,cls){ edStatusEl.textContent=msg; edStatusEl.className="edStatus "+(cls||""); }
-// When an unrelated .hex is loaded (file button / drag-drop / an example board without source),
-// wipe the editor so its stale code can't be mistaken for the loaded program. The editor's own
-// "Compilar y cargar" and demos that carry their .asm keep their source (they don't call this).
-function clearEditorSource(){
-  if(!edSrcEl.value) return;
-  edSrcEl.value=""; edSave();
-  edStatus("Se cargó un .hex — el editor se vació (no corresponde a ese programa).","");
+
+// ---- debugging on the code itself ----
+// The assembler reports which source line produced each program word (res.lineOf), so the
+// debugger can show the instruction about to run as a band on its line and take breakpoints in
+// the gutter. That map is only valid for the exact text that was compiled: once the student
+// edits, the band hides, the dots turn hollow ("pending") and follow their lines as lines are
+// inserted/deleted above them, and the next compile re-applies them. (State lives next to breakSet.)
+function edFresh(){ return edCompiledSrc!==null && edSrcEl.value===edCompiledSrc; }
+function edCodeLineFrom(line){              // first line at or below `line` that holds an instruction
+  if(!edMap) return 0; let best=0;
+  for(const n of edMap.addrsOf.keys()) if(n>=line && (!best || n<best)) best=n;
+  return best;
 }
-edSrcEl.addEventListener("input", edSave);
+function edSaveBps(){ try{ localStorage.setItem("np_bps", JSON.stringify([...bpLines])); }catch(e){} }
+// fresh program → the editor's dots are exactly the core's breakpoints, read back through the line map
+function edBpsFromCore(){
+  if(!edFresh()) return;
+  bpLines.clear(); for(const a of breakSet){ const n=edMap.lineOf.get(a); if(n) bpLines.add(n); }
+  edSaveBps();
+}
+// the editor's dots → the core (after a compile, or when undo brings the text back to what was compiled).
+// A dot on a comment / label / blank line lands on the next instruction.
+function edBpsToCore(){
+  if(!X || !edFresh()) return;
+  for(const a of breakSet) X.np_clear_break(a); breakSet.clear();
+  for(const n of bpLines){ const L=edCodeLineFrom(n); if(L){ const a=edMap.addrsOf.get(L)[0]; breakSet.add(a); X.np_set_break(a); } }
+  edBpsFromCore();
+  syncProgDots();
+}
+function syncProgDots(){ document.querySelectorAll(".progRow").forEach((r)=>{ const b=r.querySelector(".bp"); if(b) b.classList.toggle("on", breakSet.has(+r.dataset.a)); }); }
+// called by loadProgram() once a compiled program is in the core
+function edProgramLoaded(res, src){
+  const addrsOf=new Map();
+  for(const [a,n] of res.lineOf){ if(!addrsOf.has(n)) addrsOf.set(n,[]); addrsOf.get(n).push(a); }
+  for(const arr of addrsOf.values()) arr.sort((x,y)=>x-y);
+  edMap={ lineOf:res.lineOf, addrsOf }; edCompiledSrc=src; edErrLine=0;
+  edBpsToCore();
+}
+// redraw the marks: band on the PC's line (only while stopped/paused and the code is the compiled
+// one), dots, error line. Scrolls the editor to the PC line when it moves to a new line (or when the
+// editor is opened).
+function edDebugRender(){
+  if(!window.NP_EDITOR) return;
+  const fresh=edFresh();
+  const pcLine = (fresh && X && !running) ? (edMap.lineOf.get(X.np_pc())||0) : 0;
+  NP_EDITOR.setMarks({ pc:pcLine, bps:bpLines, pending:!fresh, err:edErrLine });
+  if(!pcLine) edRevealedLine=0;
+  else if(edPanelOpen && pcLine!==edRevealedLine){ NP_EDITOR.revealLine(pcLine); edRevealedLine=pcLine; }
+}
+// keep breakpoints on "their" lines across an edit: diff the old and new text by common prefix/suffix
+function edShiftBps(a, b){
+  const A=a.split("\n"), B=b.split("\n"), m=Math.min(A.length,B.length);
+  let p=0; while(p<m && A[p]===B[p]) p++;
+  let s=0; while(s<m-p && A[A.length-1-s]===B[B.length-1-s]) s++;
+  const oldEnd=A.length-s, newEnd=B.length-s, delta=B.length-A.length, next=[];
+  for(const n of bpLines){
+    if(n<=p) next.push(n);                     // above the edit: unchanged
+    else if(n>oldEnd) next.push(n+delta);      // below the edit: shifts with the inserted/deleted lines
+    else if(n<=newEnd) next.push(n);           // inside the edited block: stays if that line still exists
+  }
+  bpLines.clear(); next.forEach((n)=>bpLines.add(n)); edSaveBps();
+}
+// every keystroke (and the Tab key) lands here
+function edChanged(){
+  const before=edLastSrc, after=edSrcEl.value, wasFresh=(edCompiledSrc!==null && before===edCompiledSrc);
+  edLastSrc=after;
+  if(bpLines.size && before!==after) edShiftBps(before, after);
+  edErrLine=0;
+  edSave();
+  const fresh=edFresh();
+  if(fresh && !wasFresh){ edBpsToCore(); edStatus("El código coincide otra vez con el programa cargado.","ok"); }
+  else if(!fresh && wasFresh) edStatus("El código cambió — tocá «Compilar y cargar» para depurar con los cambios. Mientras tanto la placa sigue con el programa anterior.","");
+  edDebugRender();
+}
+// replace the whole text (an example, an opened file, Limpiar): breakpoints don't carry over
+function edSetSource(text){
+  edSrcEl.value=text; edLastSrc=text; bpLines.clear(); edSaveBps(); edErrLine=0;
+  edSrcEl.scrollTop=0; edSave(); edDebugRender();
+}
+if(window.NP_EDITOR) NP_EDITOR.onGutterClick((line)=>{
+  trackOnce("debugger/breakpoint-editor","");
+  if(edFresh() && X){
+    const L=edCodeLineFrom(line);
+    if(!L){ edStatus("No hay instrucciones de la línea "+line+" para abajo: ahí no se puede frenar.",""); return; }
+    const addrs=edMap.addrsOf.get(L);
+    if(addrs.some((a)=>breakSet.has(a))) for(const a of addrs){ breakSet.delete(a); X.np_clear_break(a); }
+    else { breakSet.add(addrs[0]); X.np_set_break(addrs[0]); }
+    edBpsFromCore(); syncProgDots();
+  }else{                                       // not compiled (or edited since): keep it for the next compile
+    if(bpLines.has(line)) bpLines.delete(line); else bpLines.add(line);
+    edSaveBps();
+  }
+  edDebugRender();
+});
+edDebugRender();
+
+edSrcEl.addEventListener("input", edChanged);
 edSrcEl.addEventListener("keydown",(e)=>{ if(e.key==="Tab"){ e.preventDefault();
   const s=edSrcEl.selectionStart, en=edSrcEl.selectionEnd;
   edSrcEl.value=edSrcEl.value.slice(0,s)+"    "+edSrcEl.value.slice(en);
-  edSrcEl.selectionStart=edSrcEl.selectionEnd=s+4; edSave(); } });
+  edSrcEl.selectionStart=edSrcEl.selectionEnd=s+4; edChanged(); } });
 // (the editor lives in the right dock's "Código" block — toggled by showEditor in the Debugger section)
 document.getElementById("edDownload").addEventListener("click", ()=>{
   const blob=new Blob([edSrcEl.value], {type:"text/plain;charset=utf-8"});
@@ -1776,39 +1870,46 @@ document.getElementById("edDownload").addEventListener("click", ()=>{
 document.getElementById("edOpen").addEventListener("click", ()=>document.getElementById("edFile").click());
 document.getElementById("edClear").addEventListener("click", ()=>{
   if(edSrcEl.value.trim() && !confirm("¿Borrar todo el código del editor?")) return;
-  edSrcEl.value=""; edSave(); edStatus(""); edSrcEl.focus();
+  edSetSource(""); edStatus(""); edSrcEl.focus();
 });
+async function edOpenFile(f, how){
+  try{ edSetSource(await f.text()); showEditor(true); edStatus("Cargado “"+f.name+"” en el editor — tocá «Compilar y cargar».",""); track("editor/cargar-asm", how); }
+  catch(err){ edStatus("No se pudo leer el archivo.","err"); }
+}
 document.getElementById("edFile").addEventListener("change", async (e)=>{
   const f=e.target.files[0]; if(!f) return;
-  try{ edSrcEl.value=await f.text(); edSave(); edStatus("Cargado “"+f.name+"” en el editor.",""); track("editor/cargar-asm","archivo"); }
-  catch(err){ edStatus("No se pudo leer el archivo.","err"); }
+  await edOpenFile(f, "archivo");
   e.target.value=""; });
-document.getElementById("edBuild").addEventListener("click", ()=>{
-  if(!window.NP_ASM){ edStatus("No se pudo cargar el ensamblador (asm.js).","err"); return; }
-  if(!X){ edStatus("El núcleo todavía no cargó. Esperá un momento.","err"); return; }
-  const res=NP_ASM.assemble(edSrcEl.value);
-  if(!res.ok){ edStatus("✗ "+res.error,"err"); track("compilar-error","editor"); return; }
-  const ok=loadHex(res.hex);
-  afterHex(ok, "tu programa");
-  if(ok) track("compilar","editor");
+// Compile the editor's text and run it. Used by «Compilar y cargar» and by the examples.
+// Returns true when the program is loaded; on an assembler error it marks the line and returns false.
+function compileAndLoad(name, fromEditor){
+  if(!window.NP_ASM){ edStatus("No se pudo cargar el ensamblador (asm.js).","err"); return false; }
+  if(!X){ edStatus("El núcleo todavía no cargó. Esperá un momento.","err"); return false; }
+  const src=edSrcEl.value, res=NP_ASM.assemble(src);
+  if(!res.ok){
+    edStatus("✗ "+res.error,"err"); if(fromEditor) track("compilar-error","editor");
+    edErrLine=res.line||0; edDebugRender(); if(edErrLine && window.NP_EDITOR) NP_EDITOR.revealLine(edErrLine);
+    return false;
+  }
+  const ok=loadProgram(res, src, name);
+  if(ok && fromEditor) track("compilar","editor");
   edStatus(ok ? ("✓ Compilado: "+res.words.size+" instrucciones — cargado y ejecutando en la placa.")
-              : "✗ El núcleo rechazó el .hex generado.", ok?"ok":"err");
-});
-// (breakpoint toggling, cell/SFR inline edit and watch add/remove are handled by
+              : "✗ El núcleo rechazó el programa compilado.", ok?"ok":"err");
+  return ok;
+}
+document.getElementById("edBuild").addEventListener("click", ()=>compileAndLoad("tu programa", true));
+// (breakpoint toggling in the Programa view, cell/SFR inline edit and watch add/remove are handled by
 //  the delegated listeners on #dbgPanes in the Debugger section above.)
-// ===== clock: text input + slider shortcut (1-2-5 steps, 1 Hz … 8 MHz) =====
-const SPEEDS=[1,2,5,10,20,50,100,200,500,1e3,2e3,5e3,1e4,2e4,5e4,1e5,2e5,5e5,1e6,2e6,4e6,8e6];
-const clockRange=document.getElementById("clockRange"); clockRange.max=SPEEDS.length-1;
+
+// ===== clock: fixed at 4 MHz (the 16F628A's internal oscillator) =====
+// The «Reloj» control was removed on 2026-10-11. In SimuPIC the clock only converts cycles to real
+// time (the core counts cycles), so it was really a playback-speed dial — and students changed it
+// by accident and then misread their delays. An instructor can still give one board its own clock
+// with `clock:"1 kHz"` in labs.js; the status line says so when that board is picked.
+const DEFAULT_CLOCK_HZ=4000000;
 function fmtHz(v){ return v>=1e6 ? (v/1e6)+" MHz" : v>=1e3 ? (v/1e3)+" kHz" : v+" Hz"; }
-function nearestSpeedIdx(hz){ let bi=0,bd=Infinity; for(let i=0;i<SPEEDS.length;i++){ const d=Math.abs(Math.log(SPEEDS[i])-Math.log(hz)); if(d<bd){bd=d;bi=i;} } return bi; }
-function parseClock(s){ s=(s||"").trim().toLowerCase().replace(/hz$/,"").trim(); const m=/^([0-9]*\.?[0-9]+)\s*([kmg]?)$/.exec(s); if(!m)return null; const mult={k:1e3,m:1e6,g:1e9}[m[2]]||1; return Math.round(parseFloat(m[1])*mult); }
-function setClockHz(hz){ clockHz=hz; if(X) X.np_set_clock_hz(hz); const el=document.getElementById("clockVal"); el.textContent=hz.toLocaleString("es-AR")+" Hz"; el.className="status ok"; }
-function applyClock(){ const v=parseClock(document.getElementById("clock").value);
-  if(v&&v>0){ setClockHz(v); clockRange.value=nearestSpeedIdx(v); }
-  else { const el=document.getElementById("clockVal"); el.textContent="inválido"; el.className="status err"; } }
-document.getElementById("clock").addEventListener("input", applyClock);
-clockRange.addEventListener("input", ()=>{ const hz=SPEEDS[+clockRange.value]; document.getElementById("clock").value=fmtHz(hz); setClockHz(hz); });
-applyClock();
+function parseClock(s){ s=(s||"").trim().toLowerCase().replace(/hz$/,"").trim(); const m=/^([0-9]*\.?[0-9]+)\s*([kmg]?)$/.exec(s); if(!m)return null; const mult={k:1e3,m:1e6,g:1e9}[m[2]]||1; const hz=Math.round(parseFloat(m[1])*mult); return hz>0?hz:null; }
+function setClockHz(hz){ clockHz=hz; if(X) X.np_set_clock_hz(hz); }
 
 // ===== always-visible elapsed-time (mm:ss:ms) + cycle counter =====
 function fmtTime(sec){ if(!isFinite(sec)||sec<0) sec=0; const ms=Math.floor(sec*1000);
@@ -1816,15 +1917,22 @@ function fmtTime(sec){ if(!isFinite(sec)||sec<0) sec=0; const ms=Math.floor(sec*
 let simReadoutEl=null;
 function updateReadout(){ (simReadoutEl||(simReadoutEl=document.getElementById("simReadout"))).textContent=fmtTime(runRealMs/1000); }
 
-// ===== drag a .hex onto the board to load it =====
+// ===== drop an .asm file anywhere → it opens in the code editor =====
+// (Until 2026-10 a .hex dropped on the board was loaded. The page still catches every file drop:
+//  without that the browser would open the file itself and navigate away from the simulator.)
 const stageEl=document.querySelector(".stage");
-["dragenter","dragover"].forEach((ev)=>stageEl.addEventListener(ev,(e)=>{ e.preventDefault(); stageEl.classList.add("drop"); }));
-stageEl.addEventListener("dragleave",(e)=>{ if(!stageEl.contains(e.relatedTarget)) stageEl.classList.remove("drop"); });
-stageEl.addEventListener("drop", async (e)=>{ e.preventDefault(); stageEl.classList.remove("drop");
-  const f=e.dataTransfer&&e.dataTransfer.files[0]; if(!f) return;
-  if(!X){ setStatus("Cargá el núcleo primero.","err"); return; }
-  if(!/\.hex$/i.test(f.name)){ setStatus("Arrastrá un archivo .hex.","err"); return; }
-  const ok=loadHex(await f.text()); afterHex(ok, f.name); if(ok){ clearEditorSource(); track("cargar-hex","arrastrar"); } });
+let dragDepth=0;
+const isFileDrag=(e)=>!!(e.dataTransfer && Array.from(e.dataTransfer.types||[]).includes("Files"));
+window.addEventListener("dragenter",(e)=>{ if(!isFileDrag(e)) return; e.preventDefault(); dragDepth++; document.body.classList.add("drop"); });
+window.addEventListener("dragover",(e)=>{ if(isFileDrag(e)) e.preventDefault(); });
+window.addEventListener("dragleave",(e)=>{ if(!isFileDrag(e)) return; if(--dragDepth<=0){ dragDepth=0; document.body.classList.remove("drop"); } });
+window.addEventListener("drop", async (e)=>{
+  if(!isFileDrag(e)) return;
+  e.preventDefault(); dragDepth=0; document.body.classList.remove("drop");
+  const f=e.dataTransfer.files[0]; if(!f) return;
+  if(!/\.(asm|inc|txt)$/i.test(f.name)){ setStatus("Para abrir un programa, arrastrá un archivo .asm.","err"); return; }
+  await edOpenFile(f, "arrastrar");
+});
 
 // ===== keyboard: space toggles play / pause =====
 window.addEventListener("keydown",(e)=>{
@@ -2125,7 +2233,7 @@ window.addEventListener("DOMContentLoaded", async ()=>{
   if(window.NP_WASM_BASE64){
     try{ await instantiate(b64ToBytes(window.NP_WASM_BASE64)); coreReady();
       document.getElementById("wasmWrap").classList.add("hidden");
-      setStatus("Núcleo listo ✓ — elegí una placa o ejemplo, o cargá un .hex.","ok"); return;
+      setStatus("Núcleo listo ✓ — elegí una placa o un ejemplo.","ok"); return;
     }catch(err){ setStatus("Falló el núcleo incrustado: "+err,"err"); }
   }
   document.getElementById("wasmWrap").classList.remove("hidden");   // no embed → expose the core (.wasm) loader

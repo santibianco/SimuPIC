@@ -119,9 +119,8 @@ Counted **every time** they happen (activity volume):
 
 | Event (path in the dashboard) | Fired when |
 |---|---|
-| `cargar-hex` (title `archivo` / `arrastrar`) | a student loads a `.hex` via the button or drag-and-drop |
 | `compilar` / `compilar-error` | the *Código* editor assembles a program and loads it / the assembler rejects it |
-| `editor/cargar-asm` | an `.asm` file is opened into the editor |
+| `editor/cargar-asm` (title `archivo` / `arrastrar`) | an `.asm` file is opened into the editor (folder button / dropped on the page) |
 | `placa/<name>` (title `placa` / `ejemplo`) | a board or example is picked from the *Placa* dropdown |
 
 Counted **once per page load** (`trackOnce()`), so the total ≈ *how many sessions used that
@@ -132,15 +131,18 @@ part of the app* — read them next to the page views to see which parts student
 | `debugger/abrir`, `editor/abrir` | the student opens the Debugger / Código panel with the toolbar button (the default-open dock on wide screens doesn't count) |
 | `debugger/paso`, `debugger/paso-10` | *Paso* / *×10* is pressed |
 | `debugger/pausa` | execution is paused |
-| `debugger/breakpoint` | a breakpoint is set |
+| `debugger/breakpoint` | a breakpoint is set in the *Programa* view |
+| `debugger/breakpoint-editor` | a breakpoint is toggled in the code editor's gutter |
 | `debugger/vista/<view>` (`prog`, `data`, `sfr`, `stack`, `watch`) | a pane is switched to that view |
 | `debugger/watch` | a watch is added |
 | `debugger/editar-memoria` | a memory cell or register is edited inline |
 | `ayuda/manual`, `ayuda/instrucciones` | the manual drawer / instruction-set table is opened |
 
-Nothing about the program itself (source, hex, file name, assembler message) is ever sent.
+Nothing about the program itself (source, file name, assembler message) is ever sent.
 Loading a program already starts it running, so there is no separate "run" event — it would be
-the same number as `cargar-hex` + `compilar`.
+the same number as `compilar`. (`cargar-hex` existed until 2026-10-11, when the `.hex` upload was
+removed; old data for it stays in the dashboard. Comparing `debugger/breakpoint` with
+`debugger/breakpoint-editor` shows whether the *Programa* view is still worth keeping.)
 
 `#toggle-goatcounter` (below) switches off **all** of it in that browser — page views and
 events alike: every hit goes through the same `goatcounter.count()` filter.
@@ -152,7 +154,7 @@ How it's wired (all in `runtime/`):
   change is a `try/catch` around `localStorage` (see the header comment).
 - `index.html` — the `<script data-goatcounter=…>` tag (with `allow_frame`, otherwise
   nothing inside the Moodle iframe would be counted), the `track()` helper next to
-  `afterHex()`, and the CSP `connect-src` / `img-src` entries for `https://simupic.goatcounter.com`.
+  `loadProgram()`, and the CSP `connect-src` / `img-src` entries for `https://simupic.goatcounter.com`.
 - `sw.js` — the service worker ignores cross-origin requests, so beacons are never cached.
 
 **Changing the site code:** replace `simupic.goatcounter.com` in `runtime/index.html`

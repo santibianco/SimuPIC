@@ -1,4 +1,5 @@
-// SimuPIC — code-editor enhancements: line-number gutter + MPASM syntax highlighting.
+// SimuPIC — code-editor enhancements: line-number gutter + MPASM syntax highlighting, plus the
+// debugger's marks drawn on the code itself (current-line band, breakpoint dots in the gutter).
 //
 // Self-contained, dependency-free, same-origin (so it's CSP-safe under the page's
 // `default-src 'none'; script-src 'self' …` policy and works offline via the service worker,
@@ -121,14 +122,50 @@
   }
 
   // ---- DOM wiring ----
-  var ta, gutter, hlEl, hlCode, lastLines = -1;
+  var ta, gutter, hlEl, hlCode, band, lastLines = -1, marksDirty = true;
+  var lineH = 19.5, padTop = 10;                       // measured from the textarea in measure()
 
+  // Debugger decorations, owned by the host (index.html → NP_EDITOR.setMarks):
+  //   pc      1-based line of the instruction about to run (0 = don't show: running, or no program)
+  //   bps     Set of breakpoint lines (gutter dots)
+  //   pending true while the code differs from what was compiled: dots are drawn hollow
+  //   err     line of the last compile error (gutter number in red), 0 = none
+  var marks = { pc: 0, bps: null, pending: false, err: 0 };
+  var onGutter = null;
+
+  function countLines(src) { var n = 1; for (var i = 0; i < src.length; i++) if (src.charCodeAt(i) === 10) n++; return n; }
+
+  // One row per line, so a row can carry a breakpoint dot / the PC band and be clicked.
   function renderGutter(src) {
-    var n = 1; for (var i = 0; i < src.length; i++) if (src.charCodeAt(i) === 10) n++;
-    if (n === lastLines) return;                        // only rebuild when the line count changes
-    lastLines = n;
-    var s = ""; for (var k = 1; k <= n; k++) { s += k; if (k < n) s += "\n"; }
-    gutter.textContent = s;
+    var n = countLines(src);
+    if (n === lastLines && !marksDirty) return;         // rebuild only when lines or marks change
+    lastLines = n; marksDirty = false;
+    var s = "", bps = marks.bps;
+    for (var k = 1; k <= n; k++) {
+      var cls = "gl";
+      if (bps && bps.has(k)) cls += marks.pending ? " bp pend" : " bp";
+      if (k === marks.pc) cls += " pc";
+      if (k === marks.err) cls += " err";
+      s += '<div class="' + cls + '" data-l="' + k + '">' + k + "</div>";
+    }
+    gutter.innerHTML = s;
+  }
+
+  // The PC band lives inside the highlight layer (behind the tokens), so it scrolls with the code.
+  function renderBand() {
+    if (!band) return;
+    if (!marks.pc) { band.style.display = "none"; return; }
+    band.style.display = "block";
+    band.style.top = (padTop + (marks.pc - 1) * lineH) + "px";
+    band.style.height = lineH + "px";
+    band.style.width = Math.max(ta.scrollWidth, ta.clientWidth) + "px";
+  }
+
+  function measure() {
+    if (!ta) return;
+    var cs = getComputedStyle(ta);
+    lineH = parseFloat(cs.lineHeight) || 19.5;
+    padTop = parseFloat(cs.paddingTop) || 10;
   }
 
   function sync() {
@@ -143,6 +180,25 @@
     var src = ta.value;
     hlCode.innerHTML = highlight(src);
     renderGutter(src);
+    renderBand();
+    sync();
+  }
+
+  function setMarks(m) {
+    for (var k in m) if (Object.prototype.hasOwnProperty.call(m, k)) marks[k] = m[k];
+    marksDirty = true;
+    if (!ta) return;
+    renderGutter(ta.value);
+    renderBand();
+    sync();
+  }
+
+  // Scroll the editor (never the page) so `line` is comfortably in view.
+  function revealLine(line) {
+    if (!ta || !line) return;
+    var top = padTop + (line - 1) * lineH, h = ta.clientHeight;
+    if (top < ta.scrollTop + lineH) ta.scrollTop = Math.max(0, top - 2 * lineH);
+    else if (top + 2 * lineH > ta.scrollTop + h) ta.scrollTop = top - h + 3 * lineH;
     sync();
   }
 
@@ -151,9 +207,17 @@
     gutter = document.getElementById("edGutter");
     hlEl = document.getElementById("edHl");
     if (!ta || !gutter || !hlEl) return;
-    hlCode = hlEl.firstElementChild || hlEl;
+    hlCode = hlEl.querySelector("code") || hlEl;
+    band = document.createElement("div");
+    band.className = "edPcBand";
+    hlEl.insertBefore(band, hlEl.firstChild);           // before <code>, so the tokens paint on top
+    measure();
     ta.addEventListener("scroll", sync);
-    window.addEventListener("resize", sync);
+    window.addEventListener("resize", function () { measure(); renderBand(); sync(); });
+    gutter.addEventListener("click", function (e) {
+      var row = e.target.closest ? e.target.closest(".gl") : null;
+      if (row && onGutter) onGutter(+row.getAttribute("data-l"));
+    });
     refresh();                                          // runs at DOMContentLoaded, after the inline
   }                                                     // script has populated the textarea
 
@@ -162,6 +226,9 @@
 
   // Public API. The host (index.html) calls refresh() whenever it changes the textarea's content —
   // typing and every programmatic edit funnel through edSave(), which calls this. Scrolling and the
-  // initial render are handled here.
-  global.NP_EDITOR = { refresh: refresh, highlight: highlight };
+  // initial render are handled here. setMarks/revealLine/onGutterClick are the debugger's hooks.
+  global.NP_EDITOR = {
+    refresh: refresh, highlight: highlight, setMarks: setMarks, revealLine: revealLine,
+    onGutterClick: function (fn) { onGutter = fn; }
+  };
 })(typeof window !== "undefined" ? window : this);

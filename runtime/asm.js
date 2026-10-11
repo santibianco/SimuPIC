@@ -1,20 +1,24 @@
 // SimuPIC — in-browser PIC16F628A assembler (MVP).
 //
 // Turns MPASM-style .asm text into Intel HEX, identical in shape to what MPLAB
-// emits, so the existing loadHex() path runs it unchanged. Pure JS: no build
-// step, runs on any phone, never touches the WASM core.
+// emits, and the page hands that to the core's loadHex() — the editor is the only
+// way programs get into SimuPIC (there is no .hex upload since 2026-10). Pure JS:
+// no build step, runs on any phone, never touches the WASM core.
 //
-// Scope (MVP): all 35 instructions, labels, EQU/SET, ORG, __CONFIG (numeric and
+// Scope: all 35 instructions, labels, EQU/SET, ORG, __CONFIG (numeric and
 // symbolic `_A & _B`), BANKSEL, GOTO $, the .dec/0x/h''/b''/d''/o''/'c' radixes
 // (bare digit-led numbers default to hex, like MPASM), a built-in PIC16F628A
-// symbol table (#include <p16f628a.inc> becomes a no-op), and END. CBLOCK,
-// #define and MACRO are deliberately out of scope and rejected with a clear
-// Spanish message rather than mis-assembled.
+// symbol table (#include <p16f628a.inc> becomes a no-op), CBLOCK/ENDC, #define,
+// MACRO/ENDM and END. The data directives (DT, DA, DW, DE, FILL, RES) are
+// deliberately out of scope — the course writes tables as RETLW lines — and are
+// rejected with a Spanish message that says what to write instead.
 //
 // Validated byte-for-byte against MPLAB output: test-asm.js assembles the real
 // examples/*.asm and diffs every program word against the matching .hex.
 //
-// API:  NP_ASM.assemble(text) -> { ok, hex, words, config } | { ok:false, error, line }
+// API:  NP_ASM.assemble(text) -> { ok, hex, words, config, lineOf } | { ok:false, error, line }
+//       `lineOf` maps each program word address to the 1-based source line that produced it
+//       (a macro call or BANKSEL owns all the words it expands to) — the editor debugger uses it.
 (function (global) {
   "use strict";
 
@@ -91,8 +95,16 @@
   };
 
   // Directives we recognise but don't yet support — reject with a clear note.
+  // Data directives SimuPIC deliberately doesn't assemble. The course teaches the long
+  // form (a RETLW per table entry, EEPROM written from code), so students only meet
+  // these when they paste code from the internet — the message says what to write instead.
   const UNSUPPORTED = {
-    DT:"DT", DA:"DA", DW:"DW", DE:"DE", FILL:"FILL", RES:"RES"
+    DT:   "escribi la tabla con una instruccion RETLW por valor (por ejemplo: retlw 0x3F)",
+    DA:   "escribi los valores con una instruccion RETLW por valor",
+    DW:   "escribi las instrucciones directamente en el programa",
+    DE:   "para guardar datos en la EEPROM escribilos desde el programa (EEADR, EEDATA, EECON1, EECON2)",
+    FILL: "escribi las instrucciones directamente (para saltear direcciones usa ORG)",
+    RES:  "defini tus variables con EQU o CBLOCK"
   };
 
   function AsmError(line, msg) { this.line = line; this.msg = msg; }
@@ -360,7 +372,7 @@
       if (ended) break;
       const up = L.mnemUp;
       if (up && up in UNSUPPORTED)
-        throw new AsmError(L.n, UNSUPPORTED[up] + " todavia no esta soportado en el editor: compila este programa en MPLAB por ahora.");
+        throw new AsmError(L.n, "la directiva " + up + " no esta soportada en SimuPIC: " + UNSUPPORTED[up] + ".");
 
       if (up === "EQU" || up === "SET" || up === "=") {
         if (!L.label) throw new AsmError(L.n, up + " necesita una etiqueta a la izquierda");
@@ -382,10 +394,12 @@
 
     // ---- Pass 2: encode ----
     const words = new Map();   // wordAddr -> 14-bit value
+    const lineOf = new Map();  // wordAddr -> source line that produced it (the debugger's line <-> address map)
     let config = null;
     const put = (addr, val, line) => {
       if (addr > 0x7FF) throw new AsmError(line, "direccion de programa fuera de rango (0x" + addr.toString(16) + ")");
       words.set(addr, val & 0x3FFF);
+      lineOf.set(addr, line);
     };
 
     lc = 0; ended = false;
@@ -413,7 +427,7 @@
       put(lc++, encode(op, ops, resolve, L.n), L.n);
     }
 
-    return { ok: true, hex: toIntelHex(words, config), words, config };
+    return { ok: true, hex: toIntelHex(words, config), words, config, lineOf };
   }
 
   function destBit(tok, resolve, line) {

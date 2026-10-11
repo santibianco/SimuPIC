@@ -7,6 +7,63 @@ classroom (codename *New Proteus*). **Shipped and live:**
 
 ## Session log (newest first) — update this at the end of each session
 
+- **2026-10-11 (no more .hex upload · debugging on the source code · clock removed)** —
+  Santiago: nobody uses the .hex upload any more (students use the editor), so remove it — which lets the
+  debugger work line by line, with breakpoints, **in the code editor** instead of only in program memory.
+  And students kept changing the clock by accident. Decisions: remove the .hex upload completely; the data
+  directives DT/DE/DW/DA/FILL/RES stay unsupported on purpose (the course writes RETLW tables by hand —
+  "better they know how it's written without shortcuts"), with a message that says what to write instead;
+  editor debugging with **option (b)** for edits after a compile; remove the clock (option A). A step over was
+  built too and then **dropped** the same night (see 4).
+  1. **.hex upload removed** — navbar button, drag-and-drop onto the board, `clearEditorSource()`; `afterHex()`
+     became `loadProgram(res, src, name)`. The four built-in examples now compile from their asm (their
+     `*_HEX` constants are gone — checked byte-identical to asm.js output before deleting). A `hex` field in
+     labs.js is ignored. Internally the compile still emits Intel HEX → `np_load_hex`: **core untouched, no
+     rebuild**. A window-level drop handler stays: an .asm dropped anywhere opens in the editor (and without
+     it the browser would open a dropped file and navigate away from the app).
+  2. **asm.js** returns `lineOf` (Map word address → 1-based source line; BANKSEL and macro calls own all the
+     words they expand to). New per-directive rejection message, never mentions MPLAB. Header comment fixed (it
+     still said CBLOCK/#define/MACRO were rejected).
+  3. **Debugging on the source.** `editor.js` now draws the gutter as one row per line (`.gl`): breakpoint dot
+     (solid, or hollow `.pend`), PC row, red error line; the PC band `.edPcBand` lives inside `.edHl` before
+     `<code>` (code is `position:relative` so the tokens paint above it). API: `NP_EDITOR.setMarks / revealLine /
+     onGutterClick`. Host state sits next to `breakSet` (`edMap`, `edCompiledSrc`, `bpLines`, `edErrLine`);
+     `edFresh()` = editor text === the compiled text. **Fresh:** a gutter click toggles the core breakpoint on
+     the line's first word (comment/label/blank lines snap to the next instruction) and `bpLines` is re-derived
+     from `breakSet` through `lineOf` — so the Programa view and the gutter are the same set. **Stale** (edited
+     after compiling): band hidden, dots hollow, gutter clicks only touch `bpLines`, which **follow their lines**
+     through edits (prefix/suffix line diff, `edShiftBps`), plus a note under the editor; undoing back to the
+     identical text makes it fresh again. Every compile re-applies `bpLines`; they persist in `np_bps` next to
+     `np_src`. The band shows only while not running; the editor scrolls itself (never the page) when the PC
+     moves to a new line. Compile error → that line number turns red and scrolls into view.
+  4. **Step over — built, then removed.** A «Por encima ↷» button was added and worked (verified below), but
+     Santiago found it "a bit too much" for students and it was taken out again: no button, no code, not in the
+     manual. If it ever comes back, the recipe was: if the word at PC is a CALL (`& 0x3800 === 0x2000`), `np_step`
+     into it, set a temporary core breakpoint on PC+1 and run at real-time speed; clear that breakpoint whenever
+     the run stops (unless it's a user breakpoint); a recursive call hitting the return address deeper in the
+     stack (`np_stack_depth`) steps past it. The manual now suggests a second breakpoint after the CALL instead.
+  5. **Clock removed** — the Reloj field + slider, their CSS and code. `clockHz` is 4 MHz; `clock` in labs.js is
+     still honoured as an **instructor-only** override (the status line says «reloj de X» for such a board). The
+     Parpadeo example ran at 1 kHz (a bare `incf` loop) → rewritten with a 256×256 delay (~0.2 s, blinks ~2.5 Hz).
+  6. **Docs:** `docs/manual.md` (steps, top-bar table, «El reloj: siempre 4 MHz», new §8.2 «Depurar sobre tu
+     código», 8.3–8.8 renumbered, the directive list — it claimed DT/DE/… were accepted — and the
+     FAQ) → `help.js` rebuilt; DEPLOY.md analytics table (`cargar-hex` gone; new
+     `debugger/breakpoint-editor`; `editor/cargar-asm` title `archivo`/`arrastrar`); README, runtime/README,
+     CLAUDE.md scope; `sw.js` → **simupic-v6**.
+  **Tests:** `test-asm.js` gained line-map checks (4 examples + BANKSEL + MACRO) and the 6 directive rejections —
+  all green; `test-isa.js` green. Headless Playwright (container, real embedded core): 33 checks green — no
+  hex/clock UI, examples compile + run, gutter breakpoint stops on its line, band + gutter PC row, Paso, Por encima
+  over `call demora` (196,100 cycles, lands on the next line, temporary breakpoint cleared), non-CALL step over,
+  insert a line → dot shifts + hollow + band hidden + note, undo → fresh, recompile → dot re-applied and hit,
+  comment-line snap, DT error line in red, Stop → band on the first instruction, Parpadeo toggles RB0 at 4 MHz,
+  dropped .asm opens in the editor, no console errors; screenshots light / dark / 390 px. Pure runtime change →
+  no wasm rebuild / embed / verify-core. (The Por encima checks in that list were run before it was removed.)
+  **Also verified live in Santiago's Chrome on Windows** (localhost:8080, cache `simupic-v6`): example loads +
+  runs, gutter breakpoint stops on line 14, Paso → 15, no .hex / clock UI — and again after removing Por encima.
+  *Uncommitted.*
+  **Kept on purpose:** the Programa view (shares the breakpoints) — compare `debugger/breakpoint` vs
+  `debugger/breakpoint-editor` in GoatCounter before deciding whether it earns its place.
+
 - **2026-09-06 (estadísticas de uso con GoatCounter)** — Santiago quería saber cuántos visitan el simulador y
   cuántos son únicos. Comparamos GoatCounter, Umami Cloud y Cloudflare Web Analytics (GA4 descartado: cookies,
   consentimiento y peso; y dentro del iframe de Moodle las cookies de terceros están cada vez más bloqueadas).
@@ -485,8 +542,9 @@ classroom (codename *New Proteus*). **Shipped and live:**
 - `core/` — Rust → WASM cycle-accurate simulation core (the heart). 82 tests.
 - `runtime/` — browser UI (the deployable student app): `index.html` (WASM loader
   + Canvas board), `core-wasm.js` (embedded core, generated), `labs.js` (instructor
-  lab boards → the "pick a board" dropdown), `manifest.json` + `sw.js` + `icon.svg`
-  (PWA), `authoring.html` (instructor-only diagram editor).
+  lab boards → the "pick a board" dropdown), `asm.js` (assembler + line map), `editor.js`
+  (code editor gutter / highlighting / debugger marks), `isa.js` + `help.js` (instruction set +
+  manual), `manifest.json` + `sw.js` + `icon.svg` (PWA), `authoring.html` (instructor-only diagram editor).
 - `serve.js` (project root) — tiny static server for local dev (`node serve.js`).
 - `embed-core.js` / `verify-core.js` — embed the built wasm into `core-wasm.js`, then
   validate it (EEPROM + debugger fixtures). Always run `verify-core.js` after embedding.
@@ -504,24 +562,26 @@ classroom (codename *New Proteus*). **Shipped and live:**
 - **Input pins**: TRIS-aware reads + `set_pin` (buttons) + RB0/INT + PORTB-change. (step 4 core)
 - **WASM**: dependency-free C-ABI (no wasm-pack) — `core/src/wasm.rs`.
 - **Browser runtime**: DIP-18 board with live pin-state squares + per-component pin
-  labels, LEDs / 7-seg / buttons, clock control, a teacher-managed "pick a board"
+  labels, LEDs / 7-seg / buttons, a fixed 4 MHz clock (no control since 2026-10-11), a teacher-managed "pick a board"
   dropdown grouped by lab (`labs.js`), four demos, and a **Spanish (es-AR) UI**.
   Verified in-browser.
 - **Debugger (Depurador)**: collapsible read-only inspector for everyone — single-step
   (`np_step`), live Ciclos/PC/W/STATUS header, program memory with disassembly + PC
   highlight, data-memory grid (bank 0/1), named SFRs with bit breakdowns, the 8-level
   hardware call stack (*Pila*), breakpoints + live memory editing, and a watch/filter (by
-  address or register name, persisted in `localStorage`). Cycle-exact.
+  address or register name, persisted in `localStorage`). Cycle-exact. Since 2026-10-11 it also works
+  **on the source**: PC line highlighted in the editor, breakpoints in its gutter.
 - **EEPROM** (EECON1/EECON2 unlock; persists across reset/power-cycle). Demo
   climbs 1→2→3 across the Reset (power-cycle) button. (step 5)
 - **Authoring tool** (`runtime/authoring.html`, instructor-only): visual editor —
   add LED/button/7-seg, assign pins (per-segment for 7-seg), button polarity +
   labels, live preview, export/import JSON. Round-trips to the student runtime.
 - **Built-in ASM editor** (`runtime/asm.js` + the **Código** panel): pure-JS PIC16F628A
-  assembler — write MPASM, compile to a runnable `.hex` in the browser/phone, no MPLAB. 35
-  instructions, labels, `EQU`/`ORG`/`__CONFIG`/`BANKSEL`, all radixes, built-in p16f628a symbols;
-  emits Intel HEX into the existing `loadHex()` (no core change). CBLOCK/`#define`/MACRO → clean
-  Spanish "use MPLAB" rejection. Validated byte-for-byte vs MPLAB (`node test-asm.js`).
+  assembler — write MPASM, compile and run in the browser/phone, no MPLAB. The **only** way a program
+  gets in (no `.hex` upload since 2026-10-11). 35 instructions, labels, `EQU`/`ORG`/`__CONFIG`/`BANKSEL`,
+  all radixes, built-in p16f628a symbols, CBLOCK/`#define`/MACRO; emits Intel HEX into the core's
+  `loadHex()` (no core change) plus a line map for the debugger. DT/DE/DW/DA/FILL/RES are rejected on
+  purpose with a hint. Validated byte-for-byte vs MPLAB (`node test-asm.js`).
 - **PWA**: `manifest.json` + network-first `sw.js` (offline + installable) +
   responsive canvas. Deploy via `.github/workflows/pages.yml`; see `DEPLOY.md`.
 - **Deployed & live** at <https://santibianco.github.io/SimuPIC/> (GitHub Pages via
@@ -555,17 +615,12 @@ file wrangling can be done from the agent's mounted shell.
 
 ## Pending / next (all optional — the project is shipped)
 
-- ASM editor **Phase 2** (optional): `CBLOCK`/`ENDC`, `#define` text macros, and `MACRO`/`ENDM` so the
-  macro/cblock labs (e.g. the multiplexed `TP 2022`) assemble in-browser too — today they're rejected
-  with a "usá MPLAB" note. The macro processor is the long pole; everything else is additive and still
-  needs no core change. `test-asm.js` already has those two files as fixtures.
-
 - Embed the live URL in the Moodle course (iframe snippet in `DEPLOY.md`).
 - More instructor lab boards: build them in `authoring.html` (it auto-loads the current
   `labs.js`), **Save to lab list**, then **💾 Save labs.js** to overwrite `runtime/labs.js`
   directly (needs `serve.js` running) → commit + push and they appear in the student
   dropdown under the **group** you set on each board.
-- Authoring niceties: drag-to-position, a "Test against a .hex" preview, honor
+- Authoring niceties: drag-to-position, a "test with a program" preview, honor
   `x`/`y` in the runtime (currently auto-placed around the chip).
 - (simplified) internal pull-ups (RBPU) — not modeled; add if a lab needs it.
 

@@ -1,7 +1,7 @@
 // SimuPIC service worker — network-first so the app is always fresh when online
 // (no stale caching during development) and fully usable offline after the
 // first visit. The whole app is ~100 KB static, so this is cheap.
-const CACHE = "simupic-v5";
+const CACHE = "simupic-v6";
 const SHELL = ["./", "./index.html", "./core-wasm.js", "./labs.js", "./asm.js", "./editor.js", "./isa.js", "./help.js", "./count.js", "./manifest.json", "./icon.svg"];
 
 self.addEventListener("install", (e) => {

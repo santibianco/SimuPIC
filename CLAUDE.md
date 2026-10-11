@@ -5,8 +5,9 @@ project, not a fresh codebase — most of it is already built, tested, and deplo
 
 ## What it is
 A browser-based, OS-agnostic, **cycle-accurate PIC16F628A simulator** for a university
-course in Argentina. Students compile firmware in MPLAB, load the `.hex` against an
-instructor's board, and watch it run. Live on GitHub Pages; embeddable in Moodle.
+course in Argentina. Students write MPASM in the built-in editor, compile it in the browser
+against an instructor's board, watch it run and debug it on the source. Live on GitHub Pages;
+embeddable in Moodle.
 
 > **Name:** SimuPIC. The folder is still `New Proteus` and a few app strings may still say
 > `picsim` — the rename is in progress, so prefer "SimuPIC" in new work.
@@ -19,7 +20,10 @@ touch near timing must keep the **82 tests** green. Spec: `docs/architecture.md`
 
 ## Scope is deliberately narrow — don't expand it without asking Santiago
 PIC16F628A only · digital I/O only · components = LEDs / 7-seg / buttons only. No analog,
-no other chips, no built-in assembler (firmware arrives as Intel HEX from MPLAB).
+no other chips. Programs get in **only** through the in-browser assembler (`runtime/asm.js`)
+and the Código editor — the `.hex` upload was removed on 2026-10-11, and so was the clock
+control (always 4 MHz; `clock` in labs.js is an instructor-only override). The assembler
+deliberately rejects DT/DE/DW/DA/FILL/RES (the course writes RETLW tables).
 
 ## Working conventions (hard-won — don't relearn these)
 - **Santiago builds the WASM on Windows (Rust). The agent can't run Rust/cargo here** — it
@@ -38,7 +42,9 @@ no other chips, no built-in assembler (firmware arrives as Intel HEX from MPLAB)
 - `core/` — Rust→WASM core (cpu, decode, memory, timer, interrupts, scheduler, sampler,
   hex, wasm).
 - `runtime/` — the app: `index.html`, `core-wasm.js`, `labs.js` (instructor boards → the
-  "Placa" dropdown), PWA files, `authoring.html` (instructor diagram editor, not deployed).
+  "Placa" dropdown), `asm.js` (assembler + line map), `editor.js` (gutter, highlighting,
+  debugger marks), PWA files, `authoring.html` (instructor diagram editor, not deployed).
+  Tests without Rust: `node test-asm.js`, `node test-isa.js`.
 - `STATUS.md` — live status + build/test/run + what's pending. **Keep it current.**
 - `README.md` / `docs/architecture.md` / `DEPLOY.md` — overview / spec / hosting + Moodle.
 

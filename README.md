@@ -5,10 +5,10 @@
 A web-based, OS-agnostic, **cycle-accurate** simulator for running and visually testing
 PIC16F628A firmware against simple digital components (LEDs, 7-segment displays, buttons).
 
-Built for the **classroom**: students write firmware in MPLAB, compile to a `.hex`, open
-the URL (or a Moodle embed), pick the lab board, load their `.hex`, and watch it drive a
-virtual board — on any laptop or phone, online or offline. (Originally codenamed
-*New Proteus*.)
+Built for the **classroom**: students open the URL (or a Moodle embed), pick the lab board,
+write their MPASM program in the built-in editor, compile it in the browser and watch it drive
+a virtual board — then debug it right on the source. On any laptop or phone, online or offline.
+(Originally codenamed *New Proteus*.)
 
 ---
 
@@ -23,14 +23,18 @@ Everything below is implemented, tested, and deployed.
   `RETFIE`); **EEPROM** (EECON1/EECON2 unlock sequence, persists across reset / power-cycle).
 - **I/O** — TRIS-aware port reads, input pins & buttons (`set_pin`, RB0/INT, PORTB-change),
   and per-pin on-time sampling for 7-segment persistence-of-vision.
-- **Browser runtime** — DIP-18 board with LEDs / 7-seg / buttons, processor-clock control,
-  a "pick a board" lab selector, four built-in demos, and JSON diagram loading. **Spanish
+- **Browser runtime** — DIP-18 board with LEDs / 7-seg / buttons, a fixed 4 MHz clock,
+  a "pick a board" lab selector, four built-in demos, and JSON diagram loading. An
+  **in-browser MPASM assembler** (`runtime/asm.js`, verified word-for-word against MPLAB) behind
+  the **Código** editor is the only way a program gets in (no `.hex` upload since 2026-10-11). **Spanish
   (es-AR) UI.** Installable **PWA** that runs fully offline after the first visit.
 - **Debugger (Depurador)** — a collapsible, read-only inspector for every student:
   single-step (*Paso*), a live PC / W / STATUS / cycle header, program memory with
   disassembly and a highlighted PC, the data-memory grid (bank 0/1), named SFRs with bit
   breakdowns, the 8-level **hardware call stack** (*Pila*), breakpoints + live memory editing,
-  and a watch/filter by address or register name. MPLAB-style and cycle-exact.
+  and a watch/filter by address or register name. MPLAB-style and cycle-exact. Debugging also
+  happens **on the source**: the line about to run is highlighted in the editor and breakpoints go
+  in its gutter.
 - **Authoring tool** — instructor-only visual editor: place components, bind pins
   (per-segment for a 7-seg), set button polarity, and export the diagram JSON.
 - **Trust** — **82 Rust tests** plus cross-checks against real MPLAB lab `.hex`/`.asm` pairs.
@@ -82,9 +86,10 @@ No pipeline, no cache, no variable latency — cycles are counted exactly by con
 ### Students
 1. Open <https://santibianco.github.io/SimuPIC/> (or the Moodle activity your instructor set up).
 2. Pick your lab from the **Placa** dropdown (e.g. *TP - Simple*).
-3. **Cargar programa (.hex)** — load the `.hex` you built in MPLAB.
-4. Watch it run and click the buttons (*Pulsador*) to interact. **Reiniciar** power-cycles
-   the chip (RAM clears, EEPROM survives); **Reloj** changes the processor frequency.
+3. Write (or open / drop) your `.asm` in **Código** and press **Compilar y cargar**.
+4. Watch it run and click the buttons (*Pulsador*) to interact. **Detener** power-cycles
+   the chip (RAM clears, EEPROM survives). The clock is always 4 MHz (1 µs per cycle).
+5. To debug: click a line number for a breakpoint, press ▶, then step with *Paso*.
 
 The first time you open it online, the browser offers to **Install** it — afterward it
 runs fully offline, as an app, with no internet needed.
@@ -102,7 +107,7 @@ runs fully offline, as an app, with no internet needed.
 ## Architecture
 
 ```
-.hex (from MPLAB)
+.asm → asm.js (in-browser assembler) → Intel HEX
       │
       ▼
 ┌─────────────────────────┐     load_hex / run_cycles(n) / read_pins / set_pin
@@ -150,10 +155,10 @@ revisiting the timing/architecture implications.**
   hardcoded to this part.
 - **Digital-only I/O.** No analog, no SPICE. A pin is `0` or `1`.
 - **Components: LEDs, 7-segment displays, buttons only.**
-- **Students don't build diagrams** — they load their `.hex` against an instructor's board.
+- **Students don't build diagrams** — they compile their program against an instructor's board.
 
-Explicitly out of scope: analog/SPICE, freeform drawn wiring, any other PIC, a built-in
-assembler (firmware arrives as Intel HEX from MPLAB), and character LCDs.
+Explicitly out of scope: analog/SPICE, freeform drawn wiring, any other PIC, and character
+LCDs. Removed on purpose (2026-10-11): loading external `.hex` files and the clock control.
 
 ### Known simplifications
 

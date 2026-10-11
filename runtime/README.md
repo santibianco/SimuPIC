@@ -12,7 +12,9 @@ From the project root:
 node serve.js     # → http://localhost:8080   (instructor editor → :8080/authoring.html)
 ```
 
-Then pick a board from the **Placa** dropdown (or a demo) and **Cargar programa (.hex)**.
+Then pick a board from the **Placa** dropdown (or a demo), write the program in **Código** and
+**Compilar y cargar**. (There is no `.hex` upload since 2026-10-11: the editor is the only way in,
+and it is also where you debug — current-line band and breakpoints on the code.)
 The embedded core + a service worker mean it works offline after the first load, and the
 browser offers to **Install** it.
 
@@ -44,10 +46,12 @@ demos. To add a board: build it in `authoring.html`, **Export JSON**, paste it i
 
 ## Files
 
-- `index.html` — the app (WASM loader, Canvas board, Spanish UI, lab dropdown, clock).
+- `index.html` — the app (WASM loader, Canvas board, Spanish UI, lab dropdown, editor debugger).
 - `core-wasm.js` — base64-embedded WASM core (generated; see above).
 - `labs.js` — instructor lab boards (the **Placa** dropdown).
-- `asm.js` — in-browser MPASM assembler behind the **Código** editor (compiles `.asm` → `.hex`).
+- `asm.js` — in-browser MPASM assembler behind the **Código** editor (`.asm` → program words + the
+  line map the debugger uses; the `.hex` it also emits is only fed to the core's loader).
+- `editor.js` — the editor's gutter, syntax highlighting and debugger marks (PC band, breakpoint dots).
 - `manifest.json` + `sw.js` + `icon.svg` — PWA (installable + offline).
 - `count.js` — local copy of GoatCounter's counter script (anonymous usage statistics; see `../DEPLOY.md`).
 - `authoring.html` — instructor-only diagram editor (excluded from the student deploy).
