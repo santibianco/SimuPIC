@@ -7,6 +7,27 @@ classroom (codename *New Proteus*). **Shipped and live:**
 
 ## Session log (newest first) — update this at the end of each session
 
+- **2026-10-11, evening (bug: editor "pivoted" on some phones → lang="es", translate="no", gutter cap)** —
+  Two students reported the editor showing the line numbers in one row and being unusable: one consistently on his
+  phone in Chrome (not in Opera), the other "fixed itself". Santiago couldn't reproduce it on the live build.
+  1. **Mechanism (reproduced headless, Pixel 7):** until the 04:00 deploy (19f8083) `editor.js` drew the gutter as
+     **one text node** `"1\n2\n…"`, relying on `white-space:pre`. If anything rewrites that text and drops the
+     newlines, the numbers go into a single row, the gutter (`flex:0 0 auto`) grows to the full width and squeezes
+     the textarea to ~24px → exactly the report. Today's gutter (one `<div>` per line) is immune to the same rewrite,
+     which would explain why it doesn't reproduce on the current build (all the reports came from the previous one).
+  2. **Prime suspect for the rewrite:** Chrome's built-in page translation. The page said `lang="en"` while being
+     Spanish, so a Spanish Chrome offers (or, after "always translate", auto-applies) English→Spanish; Opera doesn't
+     use Chrome's translator. *Not confirmed:* Chrome's translator can't run headless, and Santiago's translate test
+     was on the new build. To confirm: serve `fb79f31` locally and translate it in Chrome, or ask the students
+     whether Chrome showed a translate bar. The "fixed itself" case happened on the old build too, so it isn't the
+     deploy: translation is per visit (undone with «Mostrar original», or not offered on a later load), and the old
+     gutter was rewritten from scratch whenever the line count changed. Neither is confirmed.
+  3. **Old Chrome ruled out:** the page's floor is ~Chrome 88 (`aspect-ratio` 88, `inset` 87, flex `gap` 84,
+     `min()/clamp()` 79; JS is ES2017, nothing newer); rendered without `inset`/`aspect-ratio` → editor identical.
+  4. **Changes:** `<html lang="es">`; `translate="no"` on `#edWrap` and both `.dbgPaneBody`; `.edGutter{max-width:80px}`
+     (worst case now: gutter 80px, textarea keeps 276px on a Pixel 7); `sw.js` → **simupic-v8**. Normal rendering
+     unchanged (gutter 48px), no console errors. Pure runtime change → no wasm rebuild. *Uncommitted.*
+
 - **2026-10-11, later (app-bar redesign: Placa + transport in the top bar · editor always open · bigger board)** —
   Santiago: with the .hex upload gone the editor is the only way in, so it shouldn't be a toggle; move Placa and
   ▶/■ up next to the other controls and give the PIC the space. Desktop only — phones stay as they were.

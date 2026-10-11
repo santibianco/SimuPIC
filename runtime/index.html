@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -214,7 +214,7 @@
     font-size:13px; line-height:1.5; tab-size:4; -moz-tab-size:4; }
   /* (gutter + highlight layer get extra bottom padding so they can always scroll as far as the
      textarea, even when its horizontal scrollbar eats into its height) */
-  .edGutter{ flex:0 0 auto; overflow:hidden; box-sizing:border-box; text-align:right; white-space:pre;
+  .edGutter{ flex:0 0 auto; max-width:80px; overflow:hidden; box-sizing:border-box; text-align:right; white-space:pre;
     padding:10px 0 40px 0; color:var(--text-faint); background:var(--surface-2);
     border-right:1px solid var(--border-soft); user-select:none; -webkit-user-select:none; cursor:pointer; }
   /* one row per line: room on the left for the breakpoint dot; the PC row carries the green band */
@@ -702,14 +702,14 @@
               <select class="paneView" data-pane="A" aria-label="Vista del panel izquierdo"></select>
               <button id="paneSplit" class="paneBtn paneSplit" title="Abrir un segundo panel" aria-label="Abrir un segundo panel">⊞</button>
             </header>
-            <div class="dbgPaneBody" data-pane="A"></div>
+            <div class="dbgPaneBody" data-pane="A" translate="no"></div>
           </section>
           <section class="dbgPane paneB" data-pane="B">
             <header class="dbgPaneHead">
               <select class="paneView" data-pane="B" aria-label="Vista del panel derecho"></select>
               <button id="paneClose" class="paneBtn paneClose" title="Cerrar este panel" aria-label="Cerrar este panel">✕</button>
             </header>
-            <div class="dbgPaneBody" data-pane="B"></div>
+            <div class="dbgPaneBody" data-pane="B" translate="no"></div>
           </section>
         </div>
         </section><!-- /#dockDebug -->
@@ -732,7 +732,7 @@
             </button>
             <span class="dockTitle">Código (ASM)</span>
           </div>
-          <div id="edWrap" class="edWrap">
+          <div id="edWrap" class="edWrap" translate="no">
             <div id="edGutter" class="edGutter" aria-hidden="true">1</div>
             <div class="edField">
               <pre id="edHl" class="edHl" aria-hidden="true"><code></code></pre>
